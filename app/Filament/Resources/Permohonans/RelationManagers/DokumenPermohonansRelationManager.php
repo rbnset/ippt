@@ -21,6 +21,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DokumenPermohonansRelationManager extends RelationManager
 {
@@ -74,8 +75,7 @@ class DokumenPermohonansRelationManager extends RelationManager
 
                 TextColumn::make('catatan')
                     ->label('Catatan / Arahan')
-                    ->limit(55)
-                    ->tooltip(fn (DokumenPermohonan $record): ?string => $record->catatan)
+                    ->formatStateUsing(fn (?string $state): string => filled($state) ? Str::words($state, 8, '...') : '-')
                     ->placeholder('-')
                     ->wrap(),
 
@@ -109,77 +109,6 @@ class DokumenPermohonansRelationManager extends RelationManager
                 };
             })
             ->recordActions([
-                static::fileViewAction(label: 'Lihat'),
-
-                Action::make('lihatCatatan')
-                    ->label('Lihat Catatan')
-                    ->icon('heroicon-o-chat-bubble-left-right')
-                    ->color('gray')
-                    ->visible(fn (DokumenPermohonan $record): bool => filled($record->catatan))
-                    ->modalHeading(fn (DokumenPermohonan $record): string => 'Catatan: ' . $record->jenis_dokumen->getLabel())
-                    ->modalDescription('Baca alasan penolakan atau arahan perbaikan dari petugas.')
-                    ->form([
-                        Textarea::make('catatan')
-                            ->label('Catatan / Arahan Petugas')
-                            ->default(fn (DokumenPermohonan $record): ?string => $record->catatan)
-                            ->disabled()
-                            ->rows(7)
-                            ->columnSpanFull(),
-                    ])
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Tutup'),
-
-                Action::make('uploadUlang')
-                    ->label('Upload Ulang')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Ditolak
-                        && app(DokumenPermohonanWorkflowService::class)->isLatestSubmission($record)
-                        && auth()->user()->hasAnyRole(['pemohon', 'staff', 'admin']))
-                    ->modalHeading(fn (DokumenPermohonan $record): string => 'Upload Ulang: ' . $record->jenis_dokumen->getLabel())
-                    ->modalDescription(fn (DokumenPermohonan $record): string => 'Dokumen ini ditolak. Perbaiki sesuai arahan petugas lalu unggah file baru.\n\nAlasan / arahan: ' . ($record->catatan ?: 'Tidak ada catatan. Pastikan dokumen lengkap, jelas, dan sesuai persyaratan.'))
-                    ->form([
-                        FileUpload::make('lokasi_file')
-                            ->label('File Pengganti')
-                            ->disk('private')
-                            ->directory('dokumen-ippt')
-                            ->visibility('private')
-                            ->acceptedFileTypes([
-                                'application/pdf',
-                                'image/jpeg',
-                                'image/png',
-                            ])
-                            ->maxSize(10240)
-                            ->downloadable(false)
-                            ->openable(false)
-                            ->required()
-                            ->helperText('Pastikan file baru sudah memperbaiki masalah yang disebutkan petugas. PDF/JPG/PNG, maksimal 10 MB.'),
-
-                        Textarea::make('catatan')
-                            ->label('Catatan Perbaikan')
-                            ->rows(3)
-                            ->maxLength(1000)
-                            ->helperText('Opsional. Jelaskan perbaikan yang Anda lakukan pada dokumen baru.'),
-                    ])
-                    ->action(function (DokumenPermohonan $record, array $data): void {
-                        $newDocument = app(DokumenPermohonanWorkflowService::class)->uploadReplacement(
-                            $this->getOwnerRecord(),
-                            $record,
-                            $data['lokasi_file'],
-                            Auth::user(),
-                        );
-
-                        $newDocument->update([
-                            'catatan' => $data['catatan'] ?? null,
-                        ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Dokumen berhasil dikirim ulang')
-                            ->body('Dokumen baru berstatus Menunggu Verifikasi. Dokumen tidak dapat diganti lagi sampai petugas memberikan hasil verifikasi.')
-                            ->send();
-                    }),
-
                 Action::make('terima')
                     ->label('Terima')
                     ->icon('heroicon-o-check-circle')
@@ -188,18 +117,10 @@ class DokumenPermohonansRelationManager extends RelationManager
                         && auth()->user()->hasAnyRole(['staff', 'admin']))
                     ->requiresConfirmation()
                     ->modalHeading('Terima Dokumen')
-                    ->modalDescription('Apakah dokumen ini sudah sesuai, jelas, dan dapat diterima? Setelah diterima, pemohon tidak dapat menggantinya melalui alur upload ulang.')
+                    ->modalDescription('Apakah dokumen ini sudah sesuai, jelas, dan dapat diterima? Setelah diterima, dokumen akan terkunci.')
                     ->action(function (DokumenPermohonan $record): void {
-                        $record->update([
-                            'status' => StatusDokumen::Diterima,
-                            'catatan' => null,
-                        ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Dokumen diterima')
-                            ->body("Dokumen \"{$record->nama_file}\" telah diterima dan dikunci.")
-                            ->send();
+                        $record->update(['status' => StatusDokumen::Diterima, 'catatan' => null]);
+                        Notification::make()->success()->title('Dokumen diterima')->body("Dokumen \"{$record->nama_file}\" telah diterima dan dikunci.")->send();
                     }),
 
                 Action::make('tolak')
@@ -211,47 +132,72 @@ class DokumenPermohonansRelationManager extends RelationManager
                     ->form([
                         Textarea::make('catatan')
                             ->label('Alasan Penolakan & Arahan Perbaikan')
-                            ->required()
-                            ->rows(5)
-                            ->maxLength(1000)
-                            ->helperText('Jelaskan dengan spesifik apa yang salah dan apa yang harus diperbaiki agar pemohon dapat mengunggah ulang dengan benar.'),
+                            ->required()->rows(5)->maxLength(1000)
+                            ->helperText('Jelaskan dengan spesifik apa yang salah dan bagaimana pemohon harus memperbaikinya.'),
                     ])
                     ->modalHeading('Tolak Dokumen & Beri Arahan')
                     ->modalSubmitActionLabel('Tolak Dokumen')
                     ->action(function (DokumenPermohonan $record, array $data): void {
-                        $record->update([
-                            'status' => StatusDokumen::Ditolak,
-                            'catatan' => $data['catatan'],
-                        ]);
-
+                        $record->update(['status' => StatusDokumen::Ditolak, 'catatan' => $data['catatan']]);
                         $permohonan = $record->permohonan;
-                        if ($permohonan) {
-                            $permohonan->update(['status' => StatusPermohonan::Dikembalikan]);
-                        }
-
+                        if ($permohonan) $permohonan->update(['status' => StatusPermohonan::Dikembalikan]);
                         app(DokumenPermohonanWorkflowService::class)->notifyPemohonRejected($record->fresh(['permohonan.pemohon.user']));
-
-                        Notification::make()
-                            ->danger()
-                            ->title('Dokumen ditolak')
-                            ->body("Dokumen \"{$record->nama_file}\" ditolak dan pemohon sudah menerima notifikasi beserta arahan perbaikan.")
-                            ->send();
+                        Notification::make()->danger()->title('Dokumen ditolak')->body('Pemohon sudah menerima notifikasi beserta arahan perbaikan.')->send();
                     }),
 
                 ActionGroup::make([
-                    DeleteAction::make()
-                        ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Menunggu
-                            && auth()->user()->hasRole('admin'))
-                        ->before(function (DokumenPermohonan $record): void {
-                            if ($record->lokasi_file && Storage::disk('private')->exists($record->lokasi_file)) {
-                                Storage::disk('private')->delete($record->lokasi_file);
-                            }
+                    static::fileViewAction(label: 'Lihat', name: 'lihat_file'),
+                    static::fileDownloadAction(label: 'Unduh', name: 'unduh_file'),
+                    Action::make('cetak')
+                        ->label('Cetak')
+                        ->icon('heroicon-o-printer')
+                        ->color('gray')
+                        ->visible(fn (DokumenPermohonan $record): bool => filled($record->lokasi_file))
+                        ->disabled(fn (DokumenPermohonan $record): bool => ! Storage::disk('private')->exists($record->lokasi_file))
+                        ->url(fn (DokumenPermohonan $record): ?string => Storage::disk('private')->exists($record->lokasi_file)
+                            ? Storage::disk('private')->temporaryUrl($record->lokasi_file, now()->addMinutes(10)) : null)
+                        ->openUrlInNewTab()
+                        ->tooltip('Buka file di browser, lalu gunakan dialog cetak.'),
+                    Action::make('lihatCatatan')
+                        ->label('Lihat Catatan')
+                        ->icon('heroicon-o-chat-bubble-left-right')
+                        ->color('gray')
+                        ->visible(fn (DokumenPermohonan $record): bool => filled($record->catatan))
+                        ->modalHeading(fn (DokumenPermohonan $record): string => 'Catatan: ' . $record->jenis_dokumen->getLabel())
+                        ->modalDescription('Alasan penolakan atau arahan perbaikan dari petugas.')
+                        ->form([
+                            Textarea::make('catatan')->label('Catatan / Arahan Petugas')
+                                ->default(fn (DokumenPermohonan $record): ?string => $record->catatan)
+                                ->disabled()->rows(10)->columnSpanFull(),
+                        ])->modalSubmitAction(false)->modalCancelActionLabel('Tutup'),
+                    Action::make('uploadUlang')
+                        ->label('Upload Ulang')
+                        ->icon('heroicon-o-arrow-path')->color('warning')
+                        ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Ditolak
+                            && app(DokumenPermohonanWorkflowService::class)->isLatestSubmission($record)
+                            && auth()->user()->hasAnyRole(['pemohon', 'staff', 'admin']))
+                        ->modalHeading(fn (DokumenPermohonan $record): string => 'Upload Ulang: ' . $record->jenis_dokumen->getLabel())
+                        ->modalDescription(fn (DokumenPermohonan $record): string => 'Perbaiki dokumen sesuai arahan petugas sebelum mengunggah file baru.
+
+Alasan / arahan: ' . ($record->catatan ?: 'Pastikan dokumen lengkap, jelas, dan sesuai persyaratan.'))
+                        ->form([
+                            FileUpload::make('lokasi_file')->label('File Pengganti')->disk('private')->directory('dokumen-ippt')->visibility('private')
+                                ->acceptedFileTypes(['application/pdf','image/jpeg','image/png'])->maxSize(10240)->downloadable(false)->openable(false)->required()
+                                ->helperText('PDF/JPG/PNG, maksimal 10 MB.'),
+                            Textarea::make('catatan')->label('Catatan Perbaikan')->rows(3)->maxLength(1000)->helperText('Opsional. Jelaskan perbaikan yang Anda lakukan.'),
+                        ])
+                        ->action(function (DokumenPermohonan $record, array $data): void {
+                            $newDocument = app(DokumenPermohonanWorkflowService::class)->uploadReplacement($this->getOwnerRecord(), $record, $data['lokasi_file'], Auth::user());
+                            $newDocument->update(['catatan' => $data['catatan'] ?? null]);
+                            Notification::make()->success()->title('Dokumen berhasil dikirim ulang')->body('Dokumen baru menunggu verifikasi dan tidak dapat diganti lagi sebelum diverifikasi.')->send();
                         }),
-                ])
-                    ->label('Lainnya')
-                    ->icon('heroicon-m-ellipsis-vertical')
-                    ->color('gray')
-                    ->visible(fn (): bool => auth()->user()->hasRole('admin')),
+                    DeleteAction::make()
+                        ->label('Hapus')
+                        ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Menunggu && auth()->user()->hasRole('admin'))
+                        ->before(function (DokumenPermohonan $record): void {
+                            if ($record->lokasi_file && Storage::disk('private')->exists($record->lokasi_file)) Storage::disk('private')->delete($record->lokasi_file);
+                        }),
+                ])->label('Lainnya')->icon('heroicon-m-ellipsis-vertical')->color('gray'),
             ])
             ->emptyStateHeading('Belum ada dokumen')
             ->emptyStateDescription('Dokumen persyaratan akan tampil di sini setelah permohonan dibuat.')

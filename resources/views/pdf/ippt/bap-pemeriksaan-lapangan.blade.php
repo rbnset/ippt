@@ -29,6 +29,8 @@
         .photo-grid { width: 100%; border-collapse: collapse; }
         .photo-grid td { width: 50%; padding: 5px; text-align: center; vertical-align: top; }
         .photo-grid img { max-width: 100%; max-height: 190px; }
+        .photo-caption { font-weight: bold; margin-top: 3px; }
+        .photo-type { font-size: 8pt; color: #444; }
         .signature { margin-top: 28px; width: 100%; border-collapse: collapse; }
         .signature td { width: 50%; text-align: center; vertical-align: top; }
         .space-sign { height: 65px; }
@@ -59,11 +61,15 @@
         <div>IZIN PERUBAHAN PENGGUNAAN TANAH (IPPT)</div>
     </div>
 
-    <div class="meta">Nomor: <strong>{{ $pemeriksaan->nomor_bap }}</strong></div>
+    <div class="meta">Nomor: <strong>{{ $pemeriksaan->nomor_bap }}</strong> &nbsp; | &nbsp; Versi: <strong>{{ $pemeriksaan->versi ?: 1 }}</strong></div>
 
     <p class="text-justify">
         Pada hari {{ $pemeriksaan->tanggal_pemeriksaan?->translatedFormat('l') }}, tanggal {{ $pemeriksaan->tanggal_pemeriksaan?->translatedFormat('d F Y') }}, telah dilaksanakan pemeriksaan lapangan terhadap permohonan Izin Perubahan Penggunaan Tanah (IPPT) dengan nomor permohonan <strong>{{ $permohonan->nomor_permohonan }}</strong>.
     </p>
+
+    @if ($pemeriksaan->alasan_pembaruan)
+        <p class="text-justify"><strong>Dasar Pembaruan BAP:</strong> {{ $pemeriksaan->alasan_pembaruan }}</p>
+    @endif
 
     <div class="section-title">I. IDENTITAS PEMOHON</div>
     <table class="clean">
@@ -128,12 +134,16 @@
     <div class="section-title">VIII. REKOMENDASI / TINDAK LANJUT</div>
     <div class="text-justify">{{ $pemeriksaan->rekomendasi ?: '-' }}</div>
 
-    @if (count($fotoDataUris))
+    @if (count($photos))
         <div class="section-title">IX. DOKUMENTASI LAPANGAN</div>
         <table class="photo-grid">
-            @foreach ($fotoDataUris as $foto)
+            @foreach ($photos as $photo)
                 @if ($loop->iteration % 2 === 1)<tr>@endif
-                <td><img src="{{ $foto }}"><br><small>Dokumentasi {{ $loop->iteration }}</small></td>
+                <td>
+                    <img src="{{ $photo['data_uri'] }}">
+                    @if ($photo['jenis'])<div class="photo-type">{{ str($photo['jenis'])->replace('_', ' ')->title() }}</div>@endif
+                    <div class="photo-caption">{{ $photo['caption'] }}</div>
+                </td>
                 @if ($loop->iteration % 2 === 0 || $loop->last)</tr>@endif
             @endforeach
         </table>
