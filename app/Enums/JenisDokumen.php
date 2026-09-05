@@ -7,6 +7,7 @@ use Filament\Support\Contracts\HasLabel;
 enum JenisDokumen: string implements HasLabel
 {
     case Ktp = 'ktp';
+    case KtpPemegangKuasa = 'ktp_pemegang_kuasa';
     case BuktiHak = 'bukti_hak';
     case SuratKuasa = 'surat_kuasa';
     case SuratTidakSengketa = 'surat_tidak_sengketa';
@@ -17,6 +18,7 @@ enum JenisDokumen: string implements HasLabel
     {
         return match ($this) {
             self::Ktp => 'KTP Pemohon',
+            self::KtpPemegangKuasa => 'KTP Pemegang Kuasa',
             self::BuktiHak => 'Bukti Hak Atas Tanah',
             self::SuratKuasa => 'Surat Kuasa',
             self::SuratTidakSengketa => 'Surat Pernyataan Tidak Sengketa',

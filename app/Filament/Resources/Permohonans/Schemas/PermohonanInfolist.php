@@ -31,6 +31,14 @@ class PermohonanInfolist
                                 TextEntry::make('status')
                                     ->label('Status')
                                     ->badge(),
+
+                                TextEntry::make('diwakilkan')
+                                    ->label('Dikuasakan')
+                                    ->formatStateUsing(fn (bool $state): string => $state ? 'Ya' : 'Tidak'),
+
+                                TextEntry::make('nama_pemegang_kuasa')
+                                    ->label('Pemegang Kuasa')
+                                    ->placeholder('-'),
                             ]),
                     ]),
 

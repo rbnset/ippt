@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Pemohons\Schemas;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -172,7 +173,7 @@ class PemohonForm
                                 ]);
 
                                 // Sesuaikan nama role kalau berbeda di seeder kamu.
-                                $user->assignRole('pemohon');
+                                $user->update(['role' => UserRole::PEMOHON]);
 
                                 return $user->getKey();
                             })

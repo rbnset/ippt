@@ -108,9 +108,9 @@ class DemoDataSeeder extends Seeder
         $cases = [
             ['no' => 'IPPT/2026/09/0001', 'pemohon' => 'andi', 'date' => '2026-09-01', 'status' => StatusPermohonan::Diajukan, 'lokasi' => 'Jl. Kaliurang KM 7, Sinduharjo, Ngaglik, Sleman', 'luas' => 420, 'hak' => 'SHM No. 01872/Sinduharjo', 'now' => 'Tanah pekarangan', 'request' => 'Rumah tinggal', 'docs' => 'minimal'],
             ['no' => 'IPPT/2026/09/0002', 'pemohon' => 'siti', 'date' => '2026-08-30', 'status' => StatusPermohonan::Verifikasi, 'lokasi' => 'Jl. Parangtritis No. 45, Mantrijeron, Yogyakarta', 'luas' => 315, 'hak' => 'SHM No. 00981/Mantrijeron', 'now' => 'Pekarangan', 'request' => 'Rumah kos', 'docs' => 'pending'],
-            ['no' => 'IPPT/2026/09/0003', 'pemohon' => 'budi', 'date' => '2026-08-27', 'status' => StatusPermohonan::Dikembalikan, 'lokasi' => 'Sumberagung, Moyudan, Sleman', 'luas' => 680, 'hak' => 'SHM No. 00215/Sumberagung', 'now' => 'Sawah', 'request' => 'Rumah tinggal', 'docs' => 'returned'],
+            ['no' => 'IPPT/2026/09/0003', 'pemohon' => 'budi', 'date' => '2026-08-27', 'status' => StatusPermohonan::Dikembalikan, 'diwakilkan' => true, 'nama_kuasa' => 'Dewi Anggraini', 'nik_kuasa' => '3471015807900011', 'lokasi' => 'Sumberagung, Moyudan, Sleman', 'luas' => 680, 'hak' => 'SHM No. 00215/Sumberagung', 'now' => 'Sawah', 'request' => 'Rumah tinggal', 'docs' => 'returned'],
             ['no' => 'IPPT/2026/09/0004', 'pemohon' => 'rani', 'date' => '2026-08-18', 'status' => StatusPermohonan::ProsesTeknis, 'lokasi' => 'Banguntapan, Bantul', 'luas' => 510, 'hak' => 'SHM No. 01440/Banguntapan', 'now' => 'Pekarangan', 'request' => 'Perumahan skala kecil', 'docs' => 'complete'],
-            ['no' => 'IPPT/2026/09/0005', 'pemohon' => 'cv_griya', 'date' => '2026-08-12', 'status' => StatusPermohonan::Rekomendasi, 'lokasi' => 'Sinduadi, Mlati, Sleman', 'luas' => 1850, 'hak' => 'SHGB No. 00321/Sinduadi', 'now' => 'Lahan kosong', 'request' => 'Pergudangan dan kantor', 'docs' => 'complete'],
+            ['no' => 'IPPT/2026/09/0005', 'pemohon' => 'cv_griya', 'date' => '2026-08-12', 'status' => StatusPermohonan::Rekomendasi, 'diwakilkan' => true, 'nama_kuasa' => 'Rizky Maulana', 'nik_kuasa' => '3471041201840022', 'lokasi' => 'Sinduadi, Mlati, Sleman', 'luas' => 1850, 'hak' => 'SHGB No. 00321/Sinduadi', 'now' => 'Lahan kosong', 'request' => 'Pergudangan dan kantor', 'docs' => 'complete'],
             ['no' => 'IPPT/2026/09/0006', 'pemohon' => 'pt_artha', 'date' => '2026-07-25', 'status' => StatusPermohonan::MenungguRisalah, 'lokasi' => 'Condongcatur, Depok, Sleman', 'luas' => 3200, 'hak' => 'SHGB No. 00654/Condongcatur', 'now' => 'Pekarangan', 'request' => 'Apartemen dan fasilitas pendukung', 'docs' => 'complete'],
             ['no' => 'IPPT/2026/09/0007', 'pemohon' => 'koperasi', 'date' => '2026-07-10', 'status' => StatusPermohonan::Keputusan, 'lokasi' => 'Sidomoyo, Godean, Sleman', 'luas' => 1200, 'hak' => 'SHM No. 01123/Sidomoyo', 'now' => 'Pekarangan', 'request' => 'Pasar rakyat dan fasilitas koperasi', 'docs' => 'complete'],
             ['no' => 'IPPT/2026/08/0008', 'pemohon' => 'dwi', 'date' => '2026-06-28', 'status' => StatusPermohonan::Diterbitkan, 'lokasi' => 'Nglanggeran, Patuk, Gunungkidul', 'luas' => 750, 'hak' => 'SHM No. 00771/Nglanggeran', 'now' => 'Tegalan', 'request' => 'Homestay dan fasilitas wisata', 'docs' => 'complete'],
@@ -121,6 +121,9 @@ class DemoDataSeeder extends Seeder
         foreach ($cases as $case) {
             $permohonan = Permohonan::create([
                 'pemohon_id' => $p[$case['pemohon']]->id,
+                'diwakilkan' => $case['diwakilkan'] ?? false,
+                'nama_pemegang_kuasa' => $case['nama_kuasa'] ?? null,
+                'nik_pemegang_kuasa' => $case['nik_kuasa'] ?? null,
                 'nomor_permohonan' => $case['no'],
                 'tanggal_permohonan' => $case['date'],
                 'status' => $case['status'],
@@ -139,7 +142,19 @@ class DemoDataSeeder extends Seeder
 
     private function seedDocuments(Permohonan $permohonan, Pemohon $pemohon, User $staff, string $mode): void
     {
-        $required = JenisDokumen::cases();
+        $required = [
+            JenisDokumen::Ktp,
+            JenisDokumen::BuktiHak,
+            JenisDokumen::SuratTidakSengketa,
+            JenisDokumen::Pbb,
+            JenisDokumen::SitePlan,
+        ];
+
+        if ($permohonan->diwakilkan) {
+            $required[] = JenisDokumen::KtpPemegangKuasa;
+            $required[] = JenisDokumen::SuratKuasa;
+        }
+
         foreach ($required as $jenis) {
             $status = match ($mode) {
                 'minimal' => in_array($jenis, [JenisDokumen::Ktp, JenisDokumen::BuktiHak], true) ? StatusDokumen::Menunggu : null,

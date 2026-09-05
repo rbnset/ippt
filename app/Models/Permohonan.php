@@ -21,6 +21,9 @@ class Permohonan extends Model
 
     protected $fillable = [
         'pemohon_id',
+        'diwakilkan',
+        'nama_pemegang_kuasa',
+        'nik_pemegang_kuasa',
         'nomor_permohonan',
         'tanggal_permohonan',
         'status',
@@ -44,6 +47,7 @@ class Permohonan extends Model
     {
         return [
             'tanggal_permohonan' => 'date',
+            'diwakilkan' => 'boolean',
             'luas_tanah' => 'decimal:2',
             'status' => StatusPermohonan::class,
 
