@@ -1,22 +1,16 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
-    {
-        Schema::table('pemeriksaan_lapangan', function (Blueprint $table) {
-            $table->unique('nomor_bap', 'pemeriksaan_lapangan_nomor_bap_unique');
-        });
-    }
+    /**
+     * nomor_bap is already declared as unique by the digital BAP migration
+     * (2026_09_05_000003_upgrade_pemeriksaan_lapangan_to_digital_bap).
+     * This migration is intentionally kept as a no-op for upgrade history
+     * compatibility and to avoid adding the same index twice on fresh installs.
+     */
+    public function up(): void {}
 
-    public function down(): void
-    {
-        Schema::table('pemeriksaan_lapangan', function (Blueprint $table) {
-            $table->dropUnique('pemeriksaan_lapangan_nomor_bap_unique');
-        });
-    }
+    public function down(): void {}
 };

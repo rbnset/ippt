@@ -197,7 +197,23 @@ class RekomendasiTeknisRelationManager extends RelationManager
                         $record->refresh();
                         $path = $pdfService->store($record);
                         $record->update(['generated_pdf_path' => $path]);
-                        Notification::make()->success()->title('Rekomendasi disetujui')->body('Rekomendasi terkunci dan PDF resmi berhasil dibuat.')->send();
+
+                        // According to the Yogyakarta IPPT flow, the land office
+                        // risalah is obtained after the technical recommendation
+                        // and before the final decision.
+                        $permohonan = $record->permohonan;
+                        $permohonan->update(['status' => \App\Enums\StatusPermohonan::MenungguRisalah]);
+
+                        $staffUsers = \App\Models\User::role('staff')->get();
+                        foreach ($staffUsers as $staff) {
+                            Notification::make()
+                                ->info()
+                                ->title('Menunggu Risalah Pertimbangan Teknis')
+                                ->body("Rekomendasi {$record->nomor_rekomendasi} telah disetujui. Risalah dari Kantor Pertanahan perlu diterima sebelum keputusan IPPT.")
+                                ->sendToDatabase($staff);
+                        }
+
+                        Notification::make()->success()->title('Rekomendasi disetujui')->body('Rekomendasi terkunci, PDF resmi dibuat, dan permohonan berpindah ke tahap menunggu Risalah Pertimbangan Teknis.')->send();
                     }),
 
                 Action::make('tolak')

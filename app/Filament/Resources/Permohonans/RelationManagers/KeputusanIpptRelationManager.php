@@ -147,8 +147,9 @@ class KeputusanIpptRelationManager extends RelationManager
 
                         $permohonan = $this->getOwnerRecord();
 
-                        return $permohonan->rekomendasiTeknis?->status === StatusPersetujuan::Disetujui
-                            && $permohonan->risalahPertimbangan()->exists();
+                        return $permohonan->status === StatusPermohonan::Keputusan
+                            && $permohonan->rekomendasiTeknis?->status === StatusPersetujuan::Disetujui
+                            && $permohonan->risalahPertimbangan()->where('status', 'diterima')->exists();
                     })
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['disusun_oleh'] = auth()->id();
