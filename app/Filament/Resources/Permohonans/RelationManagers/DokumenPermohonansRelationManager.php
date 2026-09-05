@@ -11,16 +11,11 @@ use App\Models\Permohonan;
 use App\Services\DokumenPermohonanWorkflowService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -39,47 +34,11 @@ class DokumenPermohonansRelationManager extends RelationManager
 
     protected static ?string $pluralModelLabel = 'Dokumen Persyaratan';
 
-    public function form(Schema $schema): Schema
-    {
-        return $schema
-            ->components([
-                Section::make('Dokumen Persyaratan')
-                    ->description('Dokumen yang sudah diterima atau sedang menunggu verifikasi tidak dapat diganti. Upload ulang hanya tersedia untuk dokumen yang ditolak.')
-                    ->schema([
-                        Select::make('jenis_dokumen')
-                            ->label('Jenis Dokumen')
-                            ->options(fn (): array => $this->getUploadableDocumentTypes())
-                            ->required()
-                            ->searchable()
-                            ->native(false)
-                            ->helperText('Untuk pemohon, hanya jenis dokumen yang terakhir ditolak yang dapat dipilih.'),
-
-                        FileUpload::make('lokasi_file')
-                            ->label('File Dokumen Baru')
-                            ->disk('private')
-                            ->directory('dokumen-ippt')
-                            ->visibility('private')
-                            ->acceptedFileTypes([
-                                'application/pdf',
-                                'image/jpeg',
-                                'image/png',
-                            ])
-                            ->maxSize(10240)
-                            ->downloadable(false)
-                            ->openable(false)
-                            ->required()
-                            ->helperText('Pastikan file jelas, seluruh halaman terbaca, tidak terpotong, dan sesuai dengan jenis dokumen. PDF/JPG/PNG, maksimal 10 MB.'),
-
-                        Textarea::make('catatan')
-                            ->label('Catatan Pengunggah')
-                            ->rows(3)
-                            ->maxLength(1000)
-                            ->columnSpanFull()
-                            ->helperText('Opsional. Jelaskan jika ada perbaikan khusus yang sudah dilakukan.'),
-                    ])
-                    ->columns(2),
-            ]);
-    }
+    /**
+     * Visual status tab for the document table. Uploading is intentionally
+     * handled only by the dedicated workflow actions, not by the table header.
+     */
+    public string $statusTab = 'semua';
 
     public function table(Table $table): Table
     {
@@ -135,54 +94,40 @@ class DokumenPermohonansRelationManager extends RelationManager
                 SelectFilter::make('jenis_dokumen')
                     ->label('Jenis Dokumen')
                     ->options(JenisDokumen::class),
-
-                SelectFilter::make('status')
-                    ->label('Status')
-                    ->options(StatusDokumen::class),
             ])
-            ->headerActions([
-                CreateAction::make()
-                    ->label(fn (): string => auth()->user()->hasRole('pemohon') ? 'Upload Ulang Dokumen Ditolak' : 'Upload Dokumen')
-                    ->icon('heroicon-o-arrow-up-tray')
-                    ->visible(fn (): bool => $this->canUploadNewDocument())
-                    ->mutateFormDataUsing(function (array $data): array {
-                        $jenis = (string) ($data['jenis_dokumen'] ?? '');
-                        $workflow = app(DokumenPermohonanWorkflowService::class);
-                        $permohonan = $this->getOwnerRecord();
-                        $allowed = auth()->user()->hasRole('pemohon')
-                            ? $workflow->canPemohonUpload($permohonan, $jenis)
-                            : $workflow->canStaffUpload($permohonan, $jenis);
-
-                        if (! $allowed) {
-                            throw new \DomainException('Dokumen ini sedang menunggu verifikasi atau sudah diterima sehingga tidak dapat diganti.');
-                        }
-
-                        $data['diunggah_oleh'] = Auth::id();
-                        $data['status'] = StatusDokumen::Menunggu->value;
-
-                        if (! empty($data['lokasi_file'])) {
-                            $data['nama_file'] = basename($data['lokasi_file']);
-                            $data['tipe_file'] = strtolower(
-                                pathinfo($data['lokasi_file'], PATHINFO_EXTENSION)
-                            );
-
-                            if (Storage::disk('private')->exists($data['lokasi_file'])) {
-                                $data['ukuran_file'] = Storage::disk('private')->size($data['lokasi_file']);
-                            }
-                        }
-
-                        return $data;
-                    })
-                    ->after(function (DokumenPermohonan $record): void {
-                        Notification::make()
-                            ->success()
-                            ->title('Dokumen dikirim untuk verifikasi')
-                            ->body("Dokumen \"{$record->nama_file}\" berhasil diunggah. Tunggu verifikasi petugas sebelum melakukan perubahan berikutnya.")
-                            ->send();
-                    }),
-            ])
+            ->header(
+                view('filament.resources.permohonans.relation-managers.dokumen-status-tabs', [
+                    'relationManager' => $this,
+                ])
+            )
+            ->modifyQueryUsing(function ($query) {
+                return match ($this->statusTab) {
+                    'menunggu' => $query->where('status', StatusDokumen::Menunggu->value),
+                    'diterima' => $query->where('status', StatusDokumen::Diterima->value),
+                    'ditolak' => $query->where('status', StatusDokumen::Ditolak->value),
+                    default => $query,
+                };
+            })
             ->recordActions([
                 static::fileViewAction(label: 'Lihat'),
+
+                Action::make('lihatCatatan')
+                    ->label('Lihat Catatan')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->color('gray')
+                    ->visible(fn (DokumenPermohonan $record): bool => filled($record->catatan))
+                    ->modalHeading(fn (DokumenPermohonan $record): string => 'Catatan: ' . $record->jenis_dokumen->getLabel())
+                    ->modalDescription('Baca alasan penolakan atau arahan perbaikan dari petugas.')
+                    ->form([
+                        Textarea::make('catatan')
+                            ->label('Catatan / Arahan Petugas')
+                            ->default(fn (DokumenPermohonan $record): ?string => $record->catatan)
+                            ->disabled()
+                            ->rows(7)
+                            ->columnSpanFull(),
+                    ])
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup'),
 
                 Action::make('uploadUlang')
                     ->label('Upload Ulang')
@@ -294,12 +239,6 @@ class DokumenPermohonansRelationManager extends RelationManager
                     }),
 
                 ActionGroup::make([
-                    // Admin tetap dapat melakukan koreksi administratif. Pemohon tidak
-                    // pernah dapat mengedit/menghapus dokumen yang sudah disubmit.
-                    EditAction::make()
-                        ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Menunggu
-                            && auth()->user()->hasRole('admin')),
-
                     DeleteAction::make()
                         ->visible(fn (DokumenPermohonan $record): bool => $record->status === StatusDokumen::Menunggu
                             && auth()->user()->hasRole('admin'))
@@ -320,40 +259,30 @@ class DokumenPermohonansRelationManager extends RelationManager
             ->defaultSort('created_at', 'desc');
     }
 
+    public function setStatusTab(string $tab): void
+    {
+        if (! in_array($tab, ['semua', 'menunggu', 'diterima', 'ditolak'], true)) {
+            return;
+        }
+
+        $this->statusTab = $tab;
+    }
+
     /**
-     * Upload is intentionally conservative: the latest state for a document
-     * type controls whether a new submission is allowed.
+     * Lightweight counts keep the tabs informative without adding another
+     * filter control to the interface.
+     *
+     * @return array<string, int>
      */
-    private function getUploadableDocumentTypes(): array
+    public function getStatusTabCounts(): array
     {
-        $permohonan = $this->getOwnerRecord();
-        $workflow = app(DokumenPermohonanWorkflowService::class);
-        $latest = $workflow->latestByType($permohonan);
-        $isPemohon = auth()->user()->hasRole('pemohon');
-
-        $types = [];
-
-        foreach (JenisDokumen::cases() as $jenis) {
-            $last = $latest[$jenis->value] ?? null;
-
-            $allowed = $isPemohon
-                ? $last?->status === StatusDokumen::Ditolak
-                : $workflow->canStaffUpload($permohonan, $jenis->value);
-
-            if ($allowed) {
-                $types[$jenis->value] = $jenis->getLabel();
-            }
-        }
-
-        return $types;
+        return $this->getOwnerRecord()
+            ->dokumenPermohonan()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count): int => (int) $count)
+            ->all();
     }
 
-    private function canUploadNewDocument(): bool
-    {
-        if (! auth()->user()->hasAnyRole(['pemohon', 'staff', 'admin'])) {
-            return false;
-        }
-
-        return $this->getUploadableDocumentTypes() !== [];
-    }
 }

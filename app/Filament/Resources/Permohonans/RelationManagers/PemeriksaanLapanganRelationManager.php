@@ -46,112 +46,114 @@ class PemeriksaanLapanganRelationManager extends RelationManager
 
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Waktu dan Tim Pemeriksa')
-                ->description('Isi data faktual saat petugas benar-benar melakukan peninjauan lokasi.')
-                ->schema([
-                    Grid::make(4)->schema([
-                        DatePicker::make('tanggal_pemeriksaan')
-                            ->label('Tanggal Pemeriksaan')
+        return $schema
+            ->columns(1)
+            ->components([
+                Section::make('Waktu dan Tim Pemeriksa')
+                    ->description('Isi data faktual saat petugas benar-benar melakukan peninjauan lokasi.')
+                    ->schema([
+                        Grid::make(4)->schema([
+                            DatePicker::make('tanggal_pemeriksaan')
+                                ->label('Tanggal Pemeriksaan')
+                                ->required()
+                                ->native(false)
+                                ->maxDate(now()),
+                            TimePicker::make('waktu_mulai')->label('Mulai')->required()->seconds(false),
+                            TimePicker::make('waktu_selesai')->label('Selesai')->required()->seconds(false),
+                            TextInput::make('cuaca')->label('Cuaca')->required()->maxLength(100)->placeholder('Cerah / Mendung / Hujan'),
+                        ]),
+                        TextInput::make('nama_tim')
+                            ->label('Petugas / Anggota Tim Pemeriksa')
                             ->required()
-                            ->native(false)
-                            ->maxDate(now()),
-                        TimePicker::make('waktu_mulai')->label('Mulai')->required()->seconds(false),
-                        TimePicker::make('waktu_selesai')->label('Selesai')->required()->seconds(false),
-                        TextInput::make('cuaca')->label('Cuaca')->required()->maxLength(100)->placeholder('Cerah / Mendung / Hujan'),
+                            ->maxLength(500)
+                            ->placeholder('Contoh: Budi Santoso, S.T.; Siti Rahmawati, S.Si.'),
                     ]),
-                    TextInput::make('nama_tim')
-                        ->label('Petugas / Anggota Tim Pemeriksa')
-                        ->required()
-                        ->maxLength(500)
-                        ->placeholder('Contoh: Budi Santoso, S.T.; Siti Rahmawati, S.Si.'),
-                ]),
 
-            Section::make('Lokasi Hasil Peninjauan')
-                ->description('Koordinat sebaiknya diambil dari perangkat petugas saat berada di lokasi.')
-                ->schema([
-                    Grid::make(3)->schema([
-                        TextInput::make('latitude')->label('Latitude')->numeric()->required()->minValue(-90)->maxValue(90),
-                        TextInput::make('longitude')->label('Longitude')->numeric()->required()->minValue(-180)->maxValue(180),
+                Section::make('Lokasi Hasil Peninjauan')
+                    ->description('Koordinat sebaiknya diambil dari perangkat petugas saat berada di lokasi.')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            TextInput::make('latitude')->label('Latitude')->numeric()->required()->minValue(-90)->maxValue(90),
+                            TextInput::make('longitude')->label('Longitude')->numeric()->required()->minValue(-180)->maxValue(180),
+                        ]),
                         TextInput::make('alamat_lokasi')->label('Alamat / Patokan Lokasi')->required()->maxLength(1000)->columnSpan(1),
                     ]),
-                ]),
 
-            Section::make('Checklist Pemeriksaan Lapangan')
-                ->description('Semua unsur wajib diperiksa sebelum BAP dapat difinalisasi.')
-                ->schema([
-                    CheckboxList::make('checklist')
-                        ->label('Unsur yang telah diverifikasi di lapangan')
-                        ->options([
-                            'identitas_lokasi' => 'Identitas dan lokasi tanah sesuai dengan dokumen permohonan',
-                            'batas_bidang' => 'Batas-batas bidang tanah dapat diidentifikasi',
-                            'akses_jalan' => 'Akses/jaringan jalan dapat diidentifikasi',
-                            'penggunaan_eksisting' => 'Penggunaan tanah eksisting telah diverifikasi',
-                            'kondisi_fisik' => 'Kondisi fisik lokasi telah didokumentasikan',
-                            'denah_lokasi' => 'Denah/site plan sesuai dengan kondisi lapangan',
-                            'koordinat' => 'Titik koordinat lokasi telah diverifikasi',
-                            'lingkungan' => 'Kondisi lingkungan sekitar telah diperiksa',
-                        ])
-                        ->columns(2)
-                        ->required()
-                        ->minItems(8),
-                ]),
+                Section::make('Checklist Pemeriksaan Lapangan')
+                    ->description('Semua unsur wajib diperiksa sebelum BAP dapat difinalisasi.')
+                    ->schema([
+                        CheckboxList::make('checklist')
+                            ->label('Unsur yang telah diverifikasi di lapangan')
+                            ->options([
+                                'identitas_lokasi' => 'Identitas dan lokasi tanah sesuai dengan dokumen permohonan',
+                                'batas_bidang' => 'Batas-batas bidang tanah dapat diidentifikasi',
+                                'akses_jalan' => 'Akses/jaringan jalan dapat diidentifikasi',
+                                'penggunaan_eksisting' => 'Penggunaan tanah eksisting telah diverifikasi',
+                                'kondisi_fisik' => 'Kondisi fisik lokasi telah didokumentasikan',
+                                'denah_lokasi' => 'Denah/site plan sesuai dengan kondisi lapangan',
+                                'koordinat' => 'Titik koordinat lokasi telah diverifikasi',
+                                'lingkungan' => 'Kondisi lingkungan sekitar telah diperiksa',
+                            ])
+                            ->columns(2)
+                            ->required()
+                            ->minItems(8),
+                    ]),
 
-            Section::make('Hasil Pemeriksaan')
-                ->schema([
-                    Select::make('hasil')
-                        ->label('Kesimpulan Pemeriksaan')
-                        ->options(HasilPemeriksaan::class)
-                        ->required()
-                        ->native(false),
-                    Textarea::make('kondisi_eksisting')
-                        ->label('Kondisi Eksisting')
-                        ->required()
-                        ->rows(5)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-                    Textarea::make('temuan')
-                        ->label('Temuan di Lapangan')
-                        ->required()
-                        ->rows(5)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-                    Textarea::make('kesimpulan')
-                        ->label('Kesimpulan')
-                        ->required()
-                        ->rows(4)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-                    Textarea::make('rekomendasi')
-                        ->label('Rekomendasi / Tindak Lanjut')
-                        ->required()
-                        ->rows(4)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-                ]),
+                Section::make('Hasil Pemeriksaan')
+                    ->schema([
+                        Select::make('hasil')
+                            ->label('Kesimpulan Pemeriksaan')
+                            ->options(HasilPemeriksaan::class)
+                            ->required()
+                            ->native(false),
+                        Textarea::make('kondisi_eksisting')
+                            ->label('Kondisi Eksisting')
+                            ->required()
+                            ->rows(5)
+                            ->maxLength(10000)
+                            ->columnSpanFull(),
+                        Textarea::make('temuan')
+                            ->label('Temuan di Lapangan')
+                            ->required()
+                            ->rows(5)
+                            ->maxLength(10000)
+                            ->columnSpanFull(),
+                        Textarea::make('kesimpulan')
+                            ->label('Kesimpulan')
+                            ->required()
+                            ->rows(4)
+                            ->maxLength(10000)
+                            ->columnSpanFull(),
+                        Textarea::make('rekomendasi')
+                            ->label('Rekomendasi / Tindak Lanjut')
+                            ->required()
+                            ->rows(4)
+                            ->maxLength(10000)
+                            ->columnSpanFull(),
+                    ]),
 
-            Section::make('Dokumentasi Lapangan')
-                ->description('Yang diunggah adalah foto bukti lapangan. Sistem akan menyusun BAP PDF secara otomatis; PDF BAP manual tidak lagi diunggah.')
-                ->schema([
-                    FileUpload::make('foto_lapangan')
-                        ->label('Foto Kondisi Lapangan')
-                        ->disk('private')
-                        ->directory('pemeriksaan-lapangan/foto')
-                        ->visibility('private')
-                        ->image()
-                        ->multiple()
-                        ->reorderable()
-                        ->maxFiles(12)
-                        ->maxSize(5120)
-                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                        ->downloadable(false)
-                        ->openable(false)
-                        ->required()
-                        ->minFiles(2)
-                        ->helperText('Minimal 2 foto, maksimal 12 foto. Maksimal 5 MB per foto.')
-                        ->columnSpanFull(),
-                ]),
-        ]);
+                Section::make('Dokumentasi Lapangan')
+                    ->description('Yang diunggah adalah foto bukti lapangan. Sistem akan menyusun BAP PDF secara otomatis; PDF BAP manual tidak lagi diunggah.')
+                    ->schema([
+                        FileUpload::make('foto_lapangan')
+                            ->label('Foto Kondisi Lapangan')
+                            ->disk('private')
+                            ->directory('pemeriksaan-lapangan/foto')
+                            ->visibility('private')
+                            ->image()
+                            ->multiple()
+                            ->reorderable()
+                            ->maxFiles(12)
+                            ->maxSize(5120)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->downloadable(false)
+                            ->openable(false)
+                            ->required()
+                            ->minFiles(2)
+                            ->helperText('Minimal 2 foto, maksimal 12 foto. Maksimal 5 MB per foto.')
+                            ->columnSpanFull(),
+                    ]),
+            ]);
     }
 
     public function table(Table $table): Table
@@ -174,13 +176,13 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                 CreateAction::make()
                     ->label('Isi Pemeriksaan Lapangan')
                     ->icon('heroicon-o-clipboard-document-check')
-                    ->visible(fn (): bool => auth()->user()->hasAnyRole(['tim_teknis', 'admin']))
+                    ->visible(fn(): bool => auth()->user()->hasAnyRole(['tim_teknis', 'admin']))
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['dibuat_oleh'] = Auth::id();
                         $data['status'] = StatusPemeriksaan::Draf;
                         return $data;
                     })
-                    ->after(fn () => Notification::make()->success()->title('Pemeriksaan disimpan sebagai draf')->body('Periksa kembali seluruh data dan finalisasi jika sudah benar.')->send()),
+                    ->after(fn() => Notification::make()->success()->title('Pemeriksaan disimpan sebagai draf')->body('Periksa kembali seluruh data dan finalisasi jika sudah benar.')->send()),
             ])
             ->recordActions([
                 static::fileViewAction(attribute: 'generated_bap_path', label: 'Lihat BAP', name: 'lihat_bap'),
@@ -190,7 +192,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                     ->label('Finalisasi & Generate BAP')
                     ->icon('heroicon-o-document-check')
                     ->color('success')
-                    ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin']))
+                    ->visible(fn(PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin']))
                     ->requiresConfirmation()
                     ->modalHeading('Finalisasi Pemeriksaan Lapangan')
                     ->modalDescription('Setelah finalisasi, data pemeriksaan dan BAP dianggap final. Pastikan checklist, temuan, koordinat, dan foto sudah benar.')
@@ -212,9 +214,9 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                 ActionGroup::make([
                     EditAction::make()
                         ->label('Edit Draf')
-                        ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin'])),
+                        ->visible(fn(PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin'])),
                     DeleteAction::make()
-                        ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasRole('admin'))
+                        ->visible(fn(PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasRole('admin'))
                         ->before(function (PemeriksaanLapangan $record): void {
                             foreach ($record->foto_lapangan ?? [] as $photo) {
                                 Storage::disk('private')->delete($photo);
