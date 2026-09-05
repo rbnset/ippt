@@ -39,7 +39,7 @@ class RekomendasiTeknisRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return ! auth()->user()->hasRole('pemohon');
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'tim_teknis', 'kabid', 'kadis']);
     }
 
     public function form(Schema $schema): Schema
@@ -178,6 +178,12 @@ class RekomendasiTeknisRelationManager extends RelationManager
                     ->action(function (RekomendasiTeknis $record): void {
                         $record->update(['status' => StatusPersetujuan::Diajukan, 'diajukan_pada' => now()]);
                         Notification::make()->success()->title('Rekomendasi diajukan')->body('Rekomendasi teknis menunggu review pejabat berwenang.')->send();
+                        app(\App\Services\IpptWorkflowNotificationService::class)->roles(
+                            [\App\Enums\UserRole::KABID],
+                            'Review Rekomendasi Teknis diperlukan',
+                            "Rekomendasi {$record->nomor_rekomendasi} diajukan untuk review.",
+                            'warning'
+                        );
                     }),
 
                 Action::make('setujui')
@@ -204,7 +210,7 @@ class RekomendasiTeknisRelationManager extends RelationManager
                         $permohonan = $record->permohonan;
                         $permohonan->update(['status' => \App\Enums\StatusPermohonan::MenungguRisalah]);
 
-                        $staffUsers = \App\Models\User::role('staff')->get();
+                        $staffUsers = \App\Models\User::query()->where('role', 'staff')->get();
                         foreach ($staffUsers as $staff) {
                             Notification::make()
                                 ->info()
@@ -214,6 +220,8 @@ class RekomendasiTeknisRelationManager extends RelationManager
                         }
 
                         Notification::make()->success()->title('Rekomendasi disetujui')->body('Rekomendasi terkunci, PDF resmi dibuat, dan permohonan berpindah ke tahap menunggu Risalah Pertimbangan Teknis.')->send();
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon($record->permohonan, 'Rekomendasi Teknis disetujui', "Rekomendasi {$record->nomor_rekomendasi} telah disetujui.", 'success');
+                        app(\App\Services\IpptWorkflowNotificationService::class)->roles([\App\Enums\UserRole::STAFF], 'Risalah Pertimbangan diperlukan', "Rekomendasi {$record->nomor_rekomendasi} telah disetujui. Silakan proses penerimaan Risalah Pertimbangan Teknis.", 'warning');
                     }),
 
                 Action::make('tolak')
@@ -239,6 +247,8 @@ class RekomendasiTeknisRelationManager extends RelationManager
                             'ditolak_pada' => now(),
                         ]);
                         Notification::make()->danger()->title('Rekomendasi dikembalikan')->body('Penyusun dapat memperbaiki draf berdasarkan catatan review.')->send();
+                        app(\App\Services\IpptWorkflowNotificationService::class)->roles([\App\Enums\UserRole::TIM_TEKNIS], 'Rekomendasi Teknis perlu diperbaiki', "Rekomendasi {$record->nomor_rekomendasi} dikembalikan dengan catatan review.", 'danger');
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon($record->permohonan, 'Rekomendasi Teknis dikembalikan', "Rekomendasi {$record->nomor_rekomendasi} memerlukan perbaikan internal.", 'warning');
                     }),
 
                 Action::make('lihat_catatan')

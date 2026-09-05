@@ -61,6 +61,6 @@ enum StatusPermohonan: string implements HasColor, HasLabel
 
     public static function visibleForKadis(): array
     {
-        return [self::MenungguRisalah->value, self::Keputusan->value];
+        return [self::MenungguRisalah->value, self::Keputusan->value, self::Diterbitkan->value, self::Ditolak->value];
     }
 }

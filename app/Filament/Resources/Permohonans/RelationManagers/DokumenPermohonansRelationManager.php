@@ -41,6 +41,11 @@ class DokumenPermohonansRelationManager extends RelationManager
      */
     public string $statusTab = 'semua';
 
+    public static function canViewForRecord($ownerRecord, string $pageClass): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'tim_teknis', 'kabid', 'kadis']);
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -121,6 +126,7 @@ class DokumenPermohonansRelationManager extends RelationManager
                     ->action(function (DokumenPermohonan $record): void {
                         $record->update(['status' => StatusDokumen::Diterima, 'catatan' => null]);
                         Notification::make()->success()->title('Dokumen diterima')->body("Dokumen \"{$record->nama_file}\" telah diterima dan dikunci.")->send();
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon($record->permohonan, 'Dokumen persyaratan diterima', "Dokumen {$record->jenis_dokumen->getLabel()} telah diterima dan dikunci.", 'success');
                     }),
 
                 Action::make('tolak')

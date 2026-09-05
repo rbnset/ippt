@@ -18,7 +18,14 @@ class KeputusanIppt extends Model
         'jenis_keputusan',
         'status',
         'alasan',
+        'hasil_pertimbangan',
         'lokasi_file',
+        'versi',
+        'revisi_dari_id',
+        'alasan_koreksi',
+        'dikoreksi_oleh',
+        'dikoreksi_pada',
+        'is_current',
     ];
 
     protected function casts(): array
@@ -27,6 +34,8 @@ class KeputusanIppt extends Model
             'jenis_keputusan' => \App\Enums\JenisKeputusan::class,
             'status' => \App\Enums\StatusPersetujuan::class,
             'tanggal_keputusan' => 'date',
+            'dikoreksi_pada' => 'datetime',
+            'is_current' => 'boolean',
         ];
     }
 
@@ -53,4 +62,19 @@ class KeputusanIppt extends Model
             'disetujui_oleh'
         );
     }
+    public function revisiDari(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'revisi_dari_id');
+    }
+
+    public function revisi(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(self::class, 'revisi_dari_id');
+    }
+
+    public function dikoreksiOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dikoreksi_oleh');
+    }
+
 }

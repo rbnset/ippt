@@ -97,8 +97,9 @@
         }
 
         .signature {
-            margin-top: 40px;
+            margin-top: 34px;
             width: 100%;
+            page-break-inside: avoid;
         }
 
         .signature td {
@@ -106,10 +107,20 @@
             vertical-align: top;
         }
 
+        .signature-spacer {
+            height: 62px;
+        }
+
         .nama-pejabat {
-            margin-top: 70px;
+            margin-top: 4px;
             font-weight: bold;
             text-decoration: underline;
+        }
+
+        .dasar-teknis {
+            margin-top: 8px;
+            margin-bottom: 16px;
+            text-align: justify;
         }
 
         .footer {
@@ -151,6 +162,23 @@
         dan pertimbangan terhadap permohonan Izin Perubahan Penggunaan Tanah,
         ditetapkan keputusan sebagai berikut:
     </div>
+
+    @if ($keputusan->revisi_dari_id && $keputusan->revisiDari)
+        <div class="paragraf">
+            <strong>KEPUTUSAN KOREKSI / PENGGANTIAN:</strong><br>
+            Keputusan ini merupakan keputusan koreksi dan <strong>mencabut serta menggantikan</strong>
+            Keputusan IPPT Nomor <strong>{{ $keputusan->revisiDari->nomor_keputusan }}</strong>
+            tanggal {{ $keputusan->revisiDari->tanggal_keputusan?->translatedFormat('d F Y') ?? '-' }}.
+            Keputusan sebelumnya tetap disimpan dalam arsip sebagai bagian dari riwayat dan audit trail.
+        </div>
+
+        @if ($keputusan->alasan_koreksi)
+            <div class="paragraf">
+                <strong>ALASAN KOREKSI:</strong><br>
+                {{ $keputusan->alasan_koreksi }}
+            </div>
+        @endif
+    @endif
 
     {{-- DATA PEMOHON --}}
     <table>
@@ -237,6 +265,14 @@
 
     <br>
 
+    {{-- DASAR TEKNIS --}}
+    @if ($keputusan->hasil_pertimbangan)
+        <div class="dasar-teknis">
+            <strong>RINGKASAN DASAR TEKNIS:</strong><br>
+            {{ $keputusan->hasil_pertimbangan }}
+        </div>
+    @endif
+
     {{-- MENETAPKAN --}}
     <div class="paragraf">
         <strong>MENETAPKAN:</strong>
@@ -244,7 +280,7 @@
 
     <div class="paragraf">
         <strong>PERTAMA:</strong>
-        Memberikan {{ $keputusan->jenis_keputusan === 'terbit'
+        Memberikan {{ $keputusan->jenis_keputusan === \App\Enums\JenisKeputusan::Terbit
             ? 'Izin Perubahan Penggunaan Tanah'
             : 'penolakan terhadap permohonan Izin Perubahan Penggunaan Tanah'
         }}
@@ -272,7 +308,7 @@
         </tr>
     </table>
 
-    @if ($keputusan->jenis_keputusan === 'terbit')
+    @if ($keputusan->jenis_keputusan === \App\Enums\JenisKeputusan::Terbit)
 
         <div class="paragraf">
             <strong>KEDUA:</strong>
@@ -315,6 +351,11 @@
             <td>
                 Pejabat yang Berwenang
             </td>
+        </tr>
+
+        <tr>
+            <td></td>
+            <td class="signature-spacer">&nbsp;</td>
         </tr>
 
         <tr>

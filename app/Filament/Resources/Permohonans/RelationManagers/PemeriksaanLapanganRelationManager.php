@@ -43,7 +43,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return ! auth()->user()->hasRole('pemohon');
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'tim_teknis', 'kabid']);
     }
 
     public function form(Schema $schema): Schema
@@ -303,6 +303,19 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         $record->update(['generated_bap_path' => $path]);
 
                         Notification::make()->success()->title('BAP berhasil difinalisasi')->body('Form pemeriksaan kini terkunci. BAP final tersedia untuk dibuka, diunduh, dan dicetak.')->send();
+
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon(
+                            $record->permohonan,
+                            'BAP Pemeriksaan Lapangan diterbitkan',
+                            "BAP {$record->nomor_bap} telah difinalisasi dan tersedia untuk Anda lihat/unduh.",
+                            'success'
+                        );
+                        app(\App\Services\IpptWorkflowNotificationService::class)->roles(
+                            [\App\Enums\UserRole::TIM_TEKNIS, \App\Enums\UserRole::KABID],
+                            'BAP Pemeriksaan Lapangan final',
+                            "BAP {$record->nomor_bap} untuk {$record->permohonan->nomor_permohonan} telah difinalisasi.",
+                            'info'
+                        );
                     }),
 
                 Action::make('hapus_draf')

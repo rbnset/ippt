@@ -66,9 +66,9 @@ class PermohonanResource extends Resource
     {
         return [
             DokumenPermohonansRelationManager::class,
-            RisalahPertimbanganRelationManager::class,
             PemeriksaanLapanganRelationManager::class,
             RekomendasiTeknisRelationManager::class,
+            RisalahPertimbanganRelationManager::class,
             KeputusanIpptRelationManager::class,
         ];
     }

@@ -8,6 +8,8 @@ use App\Enums\StatusPersetujuan;
 use App\Filament\Concerns\HasFileViewAction;
 use App\Models\KeputusanIppt;
 use App\Services\IpptPdfService;
+use App\Services\KeputusanIpptNumberService;
+use App\Enums\UserRole;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -38,58 +40,47 @@ class KeputusanIpptRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return ! auth()->user()->hasRole('pemohon');
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kadis']);
     }
 
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Informasi Keputusan')
+            Section::make('Informasi Keputusan IPPT')
+                ->description('Rancangan keputusan disusun setelah rekomendasi teknis disetujui dan Risalah Pertimbangan Teknis diterima.')
+                ->columns(1)
                 ->schema([
-                    Grid::make(2)
-                        ->schema([
-                            TextInput::make('nomor_keputusan')
-                                ->label('Nomor Keputusan')
-                                ->maxLength(50)
-                                ->required(),
-
-                            DatePicker::make('tanggal_keputusan')
-                                ->label('Tanggal Keputusan')
-                                ->required()
-                                ->native(false),
-
-                            Select::make('jenis_keputusan')
-                                ->label('Jenis Keputusan')
-                                ->options(JenisKeputusan::class)
-                                ->required()
-                                ->native(false)
-                                ->live(),
-
-                            Select::make('status')
-                                ->label('Status')
-                                ->options(StatusPersetujuan::class)
-                                ->default(StatusPersetujuan::Draf->value)
-                                ->required()
-                                ->native(false),
-                        ]),
-
+                    TextInput::make('nomor_keputusan')
+                        ->label('Nomor Keputusan')
+                        ->disabled()
+                        ->dehydrated()
+                        ->helperText('Dibuat otomatis oleh sistem.'),
+                    DatePicker::make('tanggal_keputusan')
+                        ->label('Tanggal Keputusan')
+                        ->required()
+                        ->native(false)
+                        ->maxDate(now()),
+                    Select::make('jenis_keputusan')
+                        ->label('Hasil Keputusan')
+                        ->options(JenisKeputusan::class)
+                        ->required()
+                        ->native(false)
+                        ->default(JenisKeputusan::Terbit)
+                        ->helperText('Pilih “IPPT Diterbitkan” jika permohonan disetujui. Pilih “Permohonan Ditolak” hanya jika keputusan akhirnya menolak permohonan.')
+                        ->live(),
                     Textarea::make('alasan')
                         ->label('Alasan / Pertimbangan Keputusan')
-                        ->rows(5)
-                        ->columnSpanFull()
-                        ->helperText('Wajib diisi terutama apabila keputusan berupa penolakan.'),
-
-                    FileUpload::make('lokasi_file')
-                        ->label('File Keputusan')
-                        ->disk('private')
-                        ->directory('keputusan-ippt')
-                        ->visibility('private')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->downloadable(false)
-                        ->openable(false)
-                        ->columnSpanFull()
-                        ->helperText('Format PDF, maksimal 10 MB.'),
+                        ->rows(7)
+                        ->maxLength(12000)
+                        ->required()
+                        ->helperText('Jelaskan dasar penetapan. Untuk keputusan penolakan, uraikan alasan secara jelas.')
+                        ->columnSpanFull(),
+                    Textarea::make('hasil_pertimbangan')
+                        ->label('Ringkasan Dasar Teknis')
+                        ->rows(8)
+                        ->maxLength(12000)
+                        ->helperText('Ringkas keterkaitan rekomendasi teknis dan Risalah Pertimbangan Teknis sebagai dasar keputusan.')
+                        ->columnSpanFull(),
                 ]),
         ]);
     }
@@ -116,6 +107,17 @@ class KeputusanIpptRelationManager extends RelationManager
                     ->label('Status')
                     ->badge(),
 
+                TextColumn::make('versi')
+                    ->label('Versi')
+                    ->badge()
+                    ->placeholder('1'),
+
+                TextColumn::make('is_current')
+                    ->label('Aktif')
+                    ->formatStateUsing(fn ($state): string => $state ? 'Ya' : 'Arsip')
+                    ->badge()
+                    ->color(fn ($state): string => $state ? 'success' : 'gray'),
+
                 TextColumn::make('disusunOleh.name')
                     ->label('Disusun Oleh')
                     ->placeholder('-')
@@ -141,7 +143,7 @@ class KeputusanIpptRelationManager extends RelationManager
                     ->label('Buat Keputusan')
                     ->icon('heroicon-o-document-check')
                     ->visible(function (): bool {
-                        if (! auth()->user()->hasAnyRole(['staff', 'kabid', 'admin'])) {
+                        if (! auth()->user()->hasAnyRole(['staff', 'admin'])) {
                             return false;
                         }
 
@@ -149,10 +151,14 @@ class KeputusanIpptRelationManager extends RelationManager
 
                         return $permohonan->status === StatusPermohonan::Keputusan
                             && $permohonan->rekomendasiTeknis?->status === StatusPersetujuan::Disetujui
-                            && $permohonan->risalahPertimbangan()->where('status', 'diterima')->exists();
+                            && $permohonan->risalahPertimbangan?->status === 'diterima'
+                            && ! $permohonan->keputusanIppt()->exists();
                     })
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['disusun_oleh'] = auth()->id();
+                        $data['nomor_keputusan'] = app(KeputusanIpptNumberService::class)->generate(now());
+                        $data['status'] = StatusPersetujuan::Draf->value;
+                        $data['jenis_keputusan'] ??= JenisKeputusan::Terbit->value;
 
                         return $data;
                     })
@@ -171,7 +177,7 @@ class KeputusanIpptRelationManager extends RelationManager
                         ->icon('heroicon-o-paper-airplane')
                         ->color('warning')
                         ->visible(fn(KeputusanIppt $record): bool => $record->status === StatusPersetujuan::Draf
-                            && auth()->user()->hasAnyRole(['staff', 'kabid', 'admin']))
+                            && auth()->user()->hasAnyRole(['staff', 'admin']))
                         ->requiresConfirmation()
                         ->modalHeading('Ajukan Keputusan')
                         ->modalDescription('Keputusan akan diajukan untuk penetapan.')
@@ -183,26 +189,40 @@ class KeputusanIpptRelationManager extends RelationManager
                                 ->title('Keputusan diajukan')
                                 ->body('Keputusan IPPT berhasil diajukan untuk penetapan.')
                                 ->send();
+                            app(\App\Services\IpptWorkflowNotificationService::class)->roles([\App\Enums\UserRole::KADIS], 'Penetapan Keputusan IPPT diperlukan', "Keputusan {$record->nomor_keputusan} menunggu penetapan.", 'warning');
                         }),
 
                     // Penetapan akhir hanya wewenang kadis.
                     Action::make('tetapkan')
-                        ->label('Tetapkan Keputusan')
+                        ->label(fn(KeputusanIppt $record): string => $record->jenis_keputusan === JenisKeputusan::Terbit
+                            ? 'Tetapkan & Terbitkan'
+                            : 'Tetapkan sebagai Ditolak')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->visible(fn(KeputusanIppt $record): bool => $record->status === StatusPersetujuan::Diajukan
                             && auth()->user()->hasAnyRole(['kadis', 'admin']))
                         ->requiresConfirmation()
-                        ->modalHeading('Tetapkan Keputusan IPPT')
+                        ->modalHeading(fn(KeputusanIppt $record): string => $record->jenis_keputusan === JenisKeputusan::Terbit
+                            ? 'Tetapkan & Terbitkan Keputusan IPPT'
+                            : 'Tetapkan Keputusan sebagai Ditolak')
                         ->modalDescription(fn(KeputusanIppt $record): string => $record->jenis_keputusan === JenisKeputusan::Terbit
-                            ? 'Keputusan ini akan menetapkan IPPT untuk diterbitkan.'
-                            : 'Keputusan ini akan menetapkan permohonan sebagai ditolak.')
+                            ? 'Anda akan menyetujui dan menetapkan IPPT. Status permohonan akan menjadi Diterbitkan dan PDF keputusan resmi akan dibuat.'
+                            : 'Anda akan menetapkan keputusan penolakan. Status permohonan akan menjadi Ditolak dan alasan penolakan akan tercantum dalam keputusan.')
                         ->action(function (KeputusanIppt $record): void {
                             DB::transaction(function () use ($record): void {
+                                // Jika ini merupakan koreksi, keputusan sebelumnya tetap disimpan sebagai arsip.
+                                // Hanya versi yang baru ditetapkan yang menjadi keputusan aktif/current.
+                                $record->permohonan?->keputusanIppt()->update(['is_current' => false]);
+
                                 $record->update([
                                     'status' => StatusPersetujuan::Disetujui,
+                                    'is_current' => true,
                                     'disetujui_oleh' => auth()->id(),
+                                    'tanggal_keputusan' => $record->tanggal_keputusan ?? now()->toDateString(),
                                 ]);
+                                $record->refresh();
+                                $pdfPath = app(IpptPdfService::class)->store($record);
+                                $record->update(['lokasi_file' => $pdfPath]);
 
                                 $permohonan = $record->permohonan;
 
@@ -218,6 +238,21 @@ class KeputusanIpptRelationManager extends RelationManager
                                     'disetujui_keputusan_pada' => now(),
                                 ]);
                             });
+
+                            $pemohonUser = $record->permohonan?->pemohon?->user;
+                            if ($pemohonUser) {
+                                Notification::make()->success()->title('Keputusan IPPT ditetapkan')->body(
+                                    $record->jenis_keputusan === JenisKeputusan::Terbit
+                                        ? 'Keputusan IPPT telah ditetapkan dan PDF resmi tersedia.'
+                                        : 'Keputusan IPPT telah ditetapkan sebagai penolakan.'
+                                )->sendToDatabase($pemohonUser);
+                            }
+
+                            foreach (\App\Models\User::query()->whereIn('role', [UserRole::STAFF->value, UserRole::KADIS->value])->get() as $recipient) {
+                                Notification::make()->info()->title('Keputusan IPPT ditetapkan')->body(
+                                    "Keputusan {$record->nomor_keputusan} telah ditetapkan."
+                                )->sendToDatabase($recipient);
+                            }
 
                             Notification::make()
                                 ->success()
@@ -238,29 +273,97 @@ class KeputusanIpptRelationManager extends RelationManager
                             && auth()->user()->hasAnyRole(['kadis', 'admin']))
                         ->requiresConfirmation()
                         ->modalHeading('Kembalikan Keputusan')
-                        ->modalDescription('Keputusan akan dikembalikan ke status draf untuk diperbaiki.')
-                        ->action(function (KeputusanIppt $record): void {
-                            $record->update(['status' => StatusPersetujuan::Ditolak]);
+                        ->form([Textarea::make('alasan')->label('Catatan Perbaikan')->required()->rows(5)->maxLength(4000)])
+                        ->modalDescription('Keputusan akan dikembalikan ke penyusun untuk diperbaiki.')
+                        ->action(function (KeputusanIppt $record, array $data): void {
+                            $record->update(['status' => StatusPersetujuan::Ditolak, 'alasan' => $data['alasan']]);
 
                             Notification::make()
                                 ->warning()
                                 ->title('Keputusan dikembalikan')
                                 ->body('Draft keputusan dapat diperbaiki dan diajukan kembali.')
                                 ->send();
+                            app(\App\Services\IpptWorkflowNotificationService::class)->roles([\App\Enums\UserRole::STAFF], 'Keputusan IPPT perlu diperbaiki', "Keputusan {$record->nomor_keputusan} dikembalikan oleh Kepala Dinas.", 'danger');
                         }),
 
                     static::fileViewAction(name: 'lihat_file_keputusan'),
+
+                    Action::make('koreksi')
+                        ->label('Koreksi Keputusan')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->visible(function (KeputusanIppt $record): bool {
+                            if ($record->status !== StatusPersetujuan::Disetujui
+                                || ! auth()->user()->hasAnyRole(['staff', 'admin'])) {
+                                return false;
+                            }
+
+                            return ! $record->permohonan?->keputusanIppt()
+                                ->whereIn('status', [StatusPersetujuan::Draf->value, StatusPersetujuan::Diajukan->value])
+                                ->exists();
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Koreksi Keputusan IPPT')
+                        ->modalDescription('Koreksi tidak mengubah keputusan lama. Sistem membuat keputusan baru dengan nomor resmi baru sebagai draft. Setelah ditetapkan, keputusan baru mencabut dan menggantikan keputusan sebelumnya, sedangkan keputusan lama tetap tersimpan sebagai arsip/audit trail.')
+                        ->form([
+                            Textarea::make('alasan_koreksi')
+                                ->label('Alasan Koreksi')
+                                ->required()
+                                ->rows(5)
+                                ->maxLength(4000)
+                                ->helperText('Jelaskan kesalahan yang ditemukan dan apa yang perlu diperbaiki.'),
+                        ])
+                        ->action(function (KeputusanIppt $record, array $data): void {
+                            DB::transaction(function () use ($record, $data): void {
+                                $new = $record->replicate([
+                                    'nomor_keputusan',
+                                    'status',
+                                    'disusun_oleh',
+                                    'disetujui_oleh',
+                                    'lokasi_file',
+                                    'created_at',
+                                    'updated_at',
+                                ]);
+
+                                $new->permohonan_id = $record->permohonan_id;
+                                $new->disusun_oleh = auth()->id();
+                                $new->disetujui_oleh = null;
+                                $new->nomor_keputusan = app(KeputusanIpptNumberService::class)->generate(now());
+                                $new->status = StatusPersetujuan::Draf;
+                                $new->lokasi_file = null;
+                                $new->versi = ((int) ($record->versi ?? 1)) + 1;
+                                $new->revisi_dari_id = $record->id;
+                                $new->alasan_koreksi = $data['alasan_koreksi'];
+                                $new->dikoreksi_oleh = auth()->id();
+                                $new->dikoreksi_pada = now();
+                                $new->save();
+                            });
+
+                            Notification::make()
+                                ->success()
+                                ->title('Draft koreksi berhasil dibuat')
+                                ->body('Keputusan lama tetap tersimpan sebagai arsip. Silakan periksa dan ajukan versi koreksi untuk penetapan ulang.')
+                                ->send();
+
+                            app(\App\Services\IpptWorkflowNotificationService::class)->roles(
+                                [\App\Enums\UserRole::KADIS],
+                                'Koreksi Keputusan IPPT dibuat',
+                                "Keputusan {$record->nomor_keputusan} memiliki draft koreksi yang menunggu pemeriksaan dan penetapan.",
+                                'warning'
+                            );
+                        }),
 
                     Action::make('generate_pdf')
                         ->label('Generate PDF')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->color('info')
                         ->visible(fn(KeputusanIppt $record): bool => $record->status === StatusPersetujuan::Disetujui
-                            && auth()->user()->hasAnyRole(['staff', 'kabid', 'kadis', 'admin']))
+                            && auth()->user()->hasAnyRole(['staff', 'kadis', 'pemohon', 'admin']))
                         ->action(function (KeputusanIppt $record) {
                             $pdf = app(IpptPdfService::class)->generate($record);
 
-                            $filename = 'keputusan-ippt-' . $record->nomor_keputusan . '.pdf';
+                            $safeNomor = preg_replace('/[^A-Za-z0-9._-]+/', '-', (string) $record->nomor_keputusan);
+                            $filename = 'keputusan-ippt-' . trim($safeNomor, '-.') . '.pdf';
 
                             return response()->streamDownload(
                                 fn() => print($pdf->output()),
@@ -270,7 +373,7 @@ class KeputusanIpptRelationManager extends RelationManager
 
                     EditAction::make()
                         ->visible(fn(KeputusanIppt $record): bool => in_array($record->status->value, StatusPersetujuan::editableValues(), true)
-                            && auth()->user()->hasAnyRole(['staff', 'kabid', 'admin'])),
+                            && auth()->user()->hasAnyRole(['staff', 'admin'])),
 
                     DeleteAction::make()
                         ->visible(fn(KeputusanIppt $record): bool => in_array($record->status->value, StatusPersetujuan::editableValues(), true)

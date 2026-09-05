@@ -38,7 +38,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return ! auth()->user()->hasRole('pemohon');
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kadis']);
     }
 
     public function form(Schema $schema): Schema
@@ -50,6 +50,11 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     TextInput::make('status')
                         ->hidden()
                         ->dehydrated(),
+
+                    TextInput::make('permohonan.nomor_permohonan')
+                        ->label('Nomor Permohonan')
+                        ->disabled()
+                        ->dehydrated(false),
 
                     TextInput::make('nomor_risalah')
                         ->label('Nomor Risalah')
@@ -191,7 +196,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn(?string $state): string => match ($state) {
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
                         'diterima' => 'Diterima',
                         'menunggu_dokumen' => 'Menunggu Dokumen',
                         default => (string) $state,
@@ -199,12 +204,12 @@ class RisalahPertimbanganRelationManager extends RelationManager
 
                 TextColumn::make('nomor_ba_pembahasan')
                     ->label('BA Pembahasan')
-                    ->placeholder('-')
+                    ->placeholder('Tidak dicatat pada ringkasan sistem')
                     ->toggleable(),
 
                 TextColumn::make('diterimaOleh.name')
                     ->label('Diterima Oleh')
-                    ->placeholder('-')
+                    ->placeholder('Tidak dicatat pada ringkasan sistem')
                     ->toggleable(),
 
                 TextColumn::make('created_at')
@@ -265,6 +270,9 @@ class RisalahPertimbanganRelationManager extends RelationManager
                             ->title('Risalah berhasil diterima')
                             ->body('Risalah telah tercatat. Permohonan siap memasuki tahap penyusunan keputusan IPPT.')
                             ->send();
+
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon($this->getOwnerRecord(), 'Risalah Pertimbangan diterima', 'Risalah Pertimbangan Teknis telah diterima dan proses berlanjut ke tahap keputusan IPPT.', 'success');
+                        app(\App\Services\IpptWorkflowNotificationService::class)->roles([\App\Enums\UserRole::STAFF], 'Risalah Pertimbangan diterima', "Risalah {$data['nomor_risalah']} telah diterima. Permohonan siap dibuatkan keputusan IPPT.", 'info');
                     }),
             ])
             ->recordActions([
@@ -296,13 +304,14 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         ->modalCancelActionLabel('Tutup')
                         ->infolist(fn(RisalahPertimbangan $record) => [
                             \Filament\Infolists\Components\TextEntry::make('nomor_risalah')->label('Nomor Risalah'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_risalah')->label('Tanggal')->date('d/m/Y'),
-                            \Filament\Infolists\Components\TextEntry::make('hasil')->label('Hasil')->badge(),
+                            \Filament\Infolists\Components\TextEntry::make('tanggal_risalah')->label('Tanggal')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
+                            \Filament\Infolists\Components\TextEntry::make('hasil')->label('Hasil')->badge()->placeholder('Belum dicatat'),
+                            \Filament\Infolists\Components\TextEntry::make('permohonan.nomor_permohonan')->label('Nomor Permohonan')->placeholder('Tidak tersedia'),
                             \Filament\Infolists\Components\TextEntry::make('dasar_penerbitan')->label('Dasar Penerbitan')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_peninjauan')->label('Nomor BA Peninjauan')->placeholder('-'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_peninjauan')->label('Tanggal BA Peninjauan')->date('d/m/Y')->placeholder('-'),
-                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_pembahasan')->label('Nomor BA Pembahasan')->placeholder('-'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_pembahasan')->label('Tanggal BA')->date('d/m/Y')->placeholder('-'),
+                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_peninjauan')->label('Nomor BA Peninjauan')->placeholder('Tidak dicatat pada ringkasan sistem'),
+                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_peninjauan')->label('Tanggal BA Peninjauan')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
+                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_pembahasan')->label('Nomor BA Pembahasan')->placeholder('Tidak dicatat pada ringkasan sistem'),
+                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_pembahasan')->label('Tanggal BA')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
                             \Filament\Infolists\Components\TextEntry::make('pertimbangan_penguasaan_pemilikan')->label('Pertimbangan Tanah')->prose()->columnSpanFull(),
                             \Filament\Infolists\Components\TextEntry::make('ketentuan_syarat')->label('Ketentuan & Syarat')->prose()->columnSpanFull(),
                             \Filament\Infolists\Components\TextEntry::make('indikasi_sengketa')->label('Indikasi Sengketa/Konflik/Perkara')->prose()->columnSpanFull(),

@@ -24,6 +24,8 @@ class PermohonanPolicy
 
     public function view(User $user, Permohonan $record): bool
     {
+        if ($user->isAdmin()) return true;
+        if ($user->hasRole(UserRole::PEMOHON)) return $record->pemohon?->user_id === $user->id;
         return $this->viewAny($user);
     }
 
@@ -38,12 +40,9 @@ class PermohonanPolicy
 
     public function update(User $user, Permohonan $record): bool
     {
-        return $user->hasAnyRole([
-            UserRole::ADMIN,
-            UserRole::PEMOHON,
-            UserRole::STAFF,
-            UserRole::TIM_TEKNIS,
-        ]);
+        if ($user->isAdmin()) return true;
+        if ($user->hasRole(UserRole::PEMOHON)) return $record->pemohon?->user_id === $user->id;
+        return $user->hasAnyRole([UserRole::STAFF, UserRole::TIM_TEKNIS]);
     }
 
     public function delete(User $user, Permohonan $record): bool { return $user->isAdmin(); }
