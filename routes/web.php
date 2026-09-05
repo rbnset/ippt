@@ -3,6 +3,15 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
+Route::get('/private-files/{path}/download', function (string $path) {
+    abort_unless(Storage::disk('private')->exists($path), 404);
+
+    return Storage::disk('private')->download($path);
+})
+    ->where('path', '.*')
+    ->name('private-files.download')
+    ->middleware('signed');
+
 Route::get('/private-files/{path}', function (string $path) {
     abort_unless(Storage::disk('private')->exists($path), 404);
 
@@ -11,3 +20,4 @@ Route::get('/private-files/{path}', function (string $path) {
     ->where('path', '.*')
     ->name('private-files.show')
     ->middleware('signed');
+

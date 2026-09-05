@@ -5,6 +5,7 @@ namespace App\Filament\Concerns;
 use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 trait HasFileViewAction
 {
@@ -43,4 +44,29 @@ trait HasFileViewAction
             })
             ->openUrlInNewTab();
     }
+    protected static function fileDownloadAction(
+        string $attribute = 'lokasi_file',
+        string $disk = 'private',
+        string $label = 'Unduh File',
+        string $name = 'unduh_file',
+    ): Action {
+        return Action::make($name)
+            ->label($label)
+            ->icon('heroicon-o-arrow-down-tray')
+            ->color('gray')
+            ->visible(fn(Model $record): bool => filled($record->{$attribute}))
+            ->disabled(fn(Model $record): bool => ! Storage::disk($disk)->exists($record->{$attribute}))
+            ->url(function (Model $record) use ($attribute, $disk): ?string {
+                if (! Storage::disk($disk)->exists($record->{$attribute})) {
+                    return null;
+                }
+
+                return URL::temporarySignedRoute(
+                    'private-files.download',
+                    now()->addMinutes(10),
+                    ['path' => $record->{$attribute}],
+                );
+            });
+    }
+
 }
