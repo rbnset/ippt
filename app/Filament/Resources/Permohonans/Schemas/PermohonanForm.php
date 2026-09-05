@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Permohonans\Schemas;
 
 use App\Enums\JenisDokumen;
-use App\Models\Pemohon;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -121,6 +120,7 @@ class PermohonanForm
                         ]),
 
                     Step::make('Dokumen Persyaratan')
+                        ->visibleOn('create')
                         ->icon(Heroicon::PaperClip)
                         ->description('Semua dokumen wajib harus tersedia sebelum permohonan diajukan.')
                         ->schema([
