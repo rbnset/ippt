@@ -5,30 +5,28 @@
 @source '../../../../resources/views/components/**/*';
 @source '../../../../resources/views/pemohon/**/*';
 
-/* Portal IPPT: tetap dekat dengan visual native Filament, hanya mempertegas
-   identitas pemerintahan dan memastikan komponen custom ikut ter-scan. */
-.fi-sidebar {
-    @apply border-r border-gray-200 dark:border-gray-800;
+.fi-sidebar { @apply border-r border-gray-200 dark:border-gray-800; }
+.fi-topbar { @apply border-b border-gray-200 dark:border-gray-800; }
+.fi-simple-layout { @apply bg-slate-50 dark:bg-slate-950; }
+
+/* Auth pages deliberately escape Filament's simple-page max-width. */
+.fi-simple-page:has(.ippt-auth-page),
+.fi-simple-page:has(.ippt-auth-page) > div,
+.fi-simple-main:has(.ippt-auth-page),
+.fi-simple-main:has(.ippt-auth-page) > div,
+.fi-simple-main-ctn:has(.ippt-auth-page) {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
-.fi-topbar {
-    @apply border-b border-gray-200 dark:border-gray-800;
-}
-
-
-.fi-simple-layout {
-    @apply bg-slate-50 dark:bg-slate-950;
-}
-
-.fi-simple-main {
-    @apply py-8 sm:py-12;
-}
-
-.fi-simple-main-ctn {
-    @apply max-w-md;
+.fi-simple-page:has(.ippt-auth-page),
+.fi-simple-main:has(.ippt-auth-page),
+.fi-simple-main-ctn:has(.ippt-auth-page) {
+    min-height: 100vh !important;
 }
 
 .fi-simple-page .fi-section,
-.fi-simple-page .fi-card {
-    @apply border border-gray-200 shadow-sm dark:border-gray-800;
-}
+.fi-simple-page .fi-card { @apply border border-gray-200 shadow-sm dark:border-gray-800; }

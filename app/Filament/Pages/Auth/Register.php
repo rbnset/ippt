@@ -6,14 +6,14 @@ namespace App\Filament\Pages\Auth;
 
 use App\Enums\UserRole;
 use Filament\Auth\Pages\Register as BaseRegister;
-use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use SensitiveParameter;
 
 class Register extends BaseRegister
 {
+    /** @var view-string */
+    protected string $view = 'filament.pages.auth.register';
     public function getTitle(): string
     {
         return 'Daftar Akun Pemohon';
@@ -26,23 +26,37 @@ class Register extends BaseRegister
 
     public function getSubheading(): string
     {
-        return 'Buat akun terlebih dahulu. Setelah masuk, lengkapi data pemohon untuk diverifikasi petugas sebelum Anda dapat mengajukan IPPT.';
+        return '';
     }
 
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Akun Pengguna')
-                ->description('Gunakan email aktif karena digunakan untuk masuk dan menerima informasi proses layanan.')
-                ->schema([
-                    $this->getNameFormComponent()
-                        ->label('Nama pengguna')
-                        ->helperText('Nama ini dapat Anda lengkapi kembali pada data pemohon.'),
-                    $this->getEmailFormComponent()->label('Email aktif'),
-                    $this->getPasswordFormComponent()->label('Kata sandi'),
-                    $this->getPasswordConfirmationFormComponent()->label('Konfirmasi kata sandi'),
-                ])
-                ->columns(2),
+            $this->getNameFormComponent()
+                ->label('Nama lengkap')
+                ->placeholder('Contoh: Budi Santoso')
+                ->autocomplete('name')
+                ->autofocus()
+                ->columnSpanFull(),
+            $this->getEmailFormComponent()
+                ->label('Email')
+                ->placeholder('nama@contoh.com')
+                ->autocomplete('email')
+                ->inputMode('email')
+                ->columnSpanFull(),
+            $this->getPasswordFormComponent()
+                ->label('Kata sandi')
+                ->placeholder('Buat kata sandi minimal 8 karakter')
+                ->autocomplete('new-password')
+                ->revealable()
+                ->minLength(8)
+                ->columnSpanFull(),
+            $this->getPasswordConfirmationFormComponent()
+                ->label('Konfirmasi kata sandi')
+                ->placeholder('Ketik ulang kata sandi')
+                ->autocomplete('new-password')
+                ->revealable()
+                ->columnSpanFull(),
         ]);
     }
 
