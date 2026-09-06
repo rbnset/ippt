@@ -63,7 +63,7 @@ class DemoDataSeeder extends Seeder
         foreach ($accounts as $account) {
             User::updateOrCreate(
                 ['email' => $account['email']],
-                ['name' => $account['name'], 'password' => 'password', 'role' => UserRole::PEMOHON, 'status_akun' => 'aktif'],
+                ['name' => $account['name'], 'password' => 'password', 'role' => UserRole::PEMOHON],
             );
         }
     }
@@ -97,10 +97,6 @@ class DemoDataSeeder extends Seeder
                 'kelurahan' => $row['kelurahan'],
                 'kecamatan' => $row['kecamatan'],
                 'kota' => $row['kota'],
-                'versi_data' => 1,
-                'status_verifikasi' => 'terverifikasi',
-                'nomor_antrian' => 'PMH-' . now()->format('Y') . '-' . str_pad((string) ($row['key'] === 'andi' ? 1 : count($result) + 1), 5, '0', STR_PAD_LEFT),
-                'diajukan_pada' => now()->subDays(2),
             ]);
         }
 

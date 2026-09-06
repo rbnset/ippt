@@ -23,8 +23,8 @@ return new class extends Migration
             $table->timestamp('dilakukan_pada');
             $table->timestamps();
 
-            $table->index(['pemohon_id', 'versi_data']);
-            $table->index(['status_sesudahnya', 'dilakukan_pada']);
+            $table->index(['pemohon_id', 'versi_data'], 'pvh_pemohon_versi_index');
+            $table->index(['status_sesudahnya', 'dilakukan_pada'], 'pvh_status_dilakukan_index');
         });
     }
 

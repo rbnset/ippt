@@ -241,22 +241,17 @@ class KeputusanIpptRelationManager extends RelationManager
 
                             $pemohonUser = $record->permohonan?->pemohon?->user;
                             if ($pemohonUser) {
-                                $isTerbit = $record->jenis_keputusan === JenisKeputusan::Terbit;
-                                $reason = filled($record->alasan) ? " Alasan: {$record->alasan}" : '';
-                                $decisionNotification = Notification::make()
-                                    ->title($isTerbit ? 'IPPT diterbitkan' : 'Permohonan IPPT ditolak')
-                                    ->body($isTerbit
+                                Notification::make()->success()->title('Keputusan IPPT ditetapkan')->body(
+                                    $record->jenis_keputusan === JenisKeputusan::Terbit
                                         ? 'Keputusan IPPT telah ditetapkan dan PDF resmi tersedia.'
-                                        : 'Permohonan IPPT telah ditetapkan sebagai ditolak.' . $reason
-                                    );
-                                $isTerbit ? $decisionNotification->success() : $decisionNotification->danger();
-                                $decisionNotification->sendToDatabase($pemohonUser);
+                                        : 'Keputusan IPPT ditetapkan sebagai penolakan. Alasan: ' . ($record->alasan ?: 'Lihat dokumen keputusan untuk alasan lengkap.')
+                                )->sendToDatabase($pemohonUser, isEventDispatched: true);
                             }
 
-                            foreach (\App\Models\User::query()->whereIn('role', [UserRole::ADMIN->value, UserRole::STAFF->value, UserRole::KADIS->value])->get() as $recipient) {
+                            foreach (\App\Models\User::query()->whereIn('role', [UserRole::STAFF->value, UserRole::KADIS->value])->get() as $recipient) {
                                 Notification::make()->info()->title('Keputusan IPPT ditetapkan')->body(
                                     "Keputusan {$record->nomor_keputusan} telah ditetapkan."
-                                )->sendToDatabase($recipient);
+                                )->sendToDatabase($recipient, isEventDispatched: true);
                             }
 
                             Notification::make()

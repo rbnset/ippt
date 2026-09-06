@@ -216,7 +216,7 @@ class RekomendasiTeknisRelationManager extends RelationManager
                                 ->info()
                                 ->title('Menunggu Risalah Pertimbangan Teknis')
                                 ->body("Rekomendasi {$record->nomor_rekomendasi} telah disetujui. Risalah dari Kantor Pertanahan perlu diterima sebelum keputusan IPPT.")
-                                ->sendToDatabase($staff);
+                                ->sendToDatabase($staff, isEventDispatched: true);
                         }
 
                         Notification::make()->success()->title('Rekomendasi disetujui')->body('Rekomendasi terkunci, PDF resmi dibuat, dan permohonan berpindah ke tahap menunggu Risalah Pertimbangan Teknis.')->send();

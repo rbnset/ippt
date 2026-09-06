@@ -33,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->registration(Register::class)
             ->databaseNotifications()
             ->databaseNotificationsPolling('10s')
+            ->topNavigation()
             ->colors([
                 'primary' => Color::Amber,
             ])

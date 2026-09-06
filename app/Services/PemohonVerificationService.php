@@ -122,7 +122,7 @@ class PemohonVerificationService
         ]);
 
         $this->history($pemohon, 'ditolak', $oldStatus, 'perlu_perbaikan', $reason);
-        $this->notifyPemohon($pemohon, 'Data pemohon perlu diperbaiki', "Alasan perubahan/perbaikan: {$reason}", 'warning');
+        $this->notifyPemohon($pemohon, 'Data pemohon perlu diperbaiki', "Petugas meminta perbaikan: {$reason}", 'warning');
         Notification::make()->warning()->title('Perbaikan diminta')->body('Alasan sudah dikirim kepada pemohon.')->send();
     }
 
@@ -193,7 +193,7 @@ class PemohonVerificationService
 
         foreach ($users as $user) {
             $notification = Notification::make()->title($title)->body($body)->actions([
-                Action::make('review')->label('Tinjau Data Pemohon')->url($url)->markAsRead(),
+                Action::make('review')->label('Tinjau Data Pemohon')->url($url),
             ]);
             match ($level) {
                 'success' => $notification->success(),
@@ -201,7 +201,7 @@ class PemohonVerificationService
                 'danger' => $notification->danger(),
                 default => $notification->info(),
             };
-            $notification->sendToDatabase($user);
+            $notification->sendToDatabase($user, isEventDispatched: true);
         }
     }
 
@@ -210,7 +210,7 @@ class PemohonVerificationService
         $user = $pemohon->loadMissing('user')->user;
         if (! $user) return;
         $notification = Notification::make()->title($title)->body($body)->actions([
-            Action::make('open')->label('Buka Dasbor')->url(\App\Filament\Pages\Dashboard::getUrl())->markAsRead(),
+            Action::make('open')->label('Buka Dasbor')->url(\App\Filament\Pages\Dashboard::getUrl()),
         ]);
         match ($level) {
             'success' => $notification->success(),
@@ -218,6 +218,6 @@ class PemohonVerificationService
             'danger' => $notification->danger(),
             default => $notification->info(),
         };
-        $notification->sendToDatabase($user);
+        $notification->sendToDatabase($user, isEventDispatched: true);
     }
 }

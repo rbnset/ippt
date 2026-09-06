@@ -36,6 +36,6 @@ class IpptWorkflowNotificationService
             'danger' => $notification->danger(),
             default => $notification->info(),
         };
-        $notification->sendToDatabase($user);
+        $notification->sendToDatabase($user, isEventDispatched: true);
     }
 }

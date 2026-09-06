@@ -129,6 +129,6 @@ class DokumenPermohonanWorkflowService
                 $document->permohonan->nomor_permohonan,
                 $document->catatan ?: 'Silakan periksa kembali dokumen dan unggah berkas yang sesuai.',
             ))
-            ->sendToDatabase($user);
+            ->sendToDatabase($user, isEventDispatched: true);
     }
 }
