@@ -7,13 +7,12 @@ use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\Hash;
 
 class PemohonForm
 {
@@ -142,11 +141,6 @@ class PemohonForm
                             ->disabled()
                             ->dehydrated(false)
                             ->native(false),
-                        Textarea::make('catatan_verifikasi')
-                            ->label('Catatan Verifikasi')
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->rows(4),
                         Textarea::make('alasan_perubahan')
                             ->label('Alasan Perubahan Data')
                             ->disabled()
@@ -156,64 +150,21 @@ class PemohonForm
                     ->columns(2),
 
                 Section::make('Akun Pengguna')
-                    ->description('Opsional. Hubungkan data pemohon ini dengan akun login supaya pemohon bisa memantau status permohonannya sendiri. Boleh dikosongkan jika pemohon belum atau tidak memiliki akun.')
+                    ->description('Hubungan akun dikelola sistem. Satu akun pengguna hanya dapat memiliki satu data pemohon.')
                     ->icon(Heroicon::UserCircle)
-                    ->collapsible()
                     ->schema([
-                        Toggle::make('has_account')
-                            ->label('Kaitkan dengan akun pengguna')
-                            ->live()
-                            ->dehydrated(false)
-                            ->default(fn(?\App\Models\Pemohon $record): bool => filled($record?->user_id))
-                            ->helperText('Aktifkan untuk mencari akun yang sudah ada, atau membuat akun baru.')
-                            ->columnSpanFull(),
+                        Placeholder::make('akun_terhubung')
+                            ->label('Akun yang terhubung')
+                            ->content(function (?\App\Models\Pemohon $record): string {
+                                $user = $record?->user;
 
-                        Select::make('user_id')
-                            ->label('Akun Pengguna')
-                            ->relationship(name: 'user', titleAttribute: 'name')
-                            ->getOptionLabelFromRecordUsing(fn(User $record): string => "{$record->name} ({$record->email})")
-                            ->searchable(['name', 'email'])
-                            ->preload()
-                            ->native(false)
-                            ->visible(fn(Get $get): bool => (bool) $get('has_account'))
-                            ->required(fn(Get $get): bool => (bool) $get('has_account'))
-                            ->dehydrated(true)
-                            ->dehydrateStateUsing(fn($state, Get $get) => $get('has_account') ? $state : null)
-                            ->createOptionForm([
-                                TextInput::make('name')
-                                    ->label('Nama')
-                                    ->required()
-                                    ->maxLength(150),
-
-                                TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->required()
-                                    ->unique('users', 'email'),
-
-                                TextInput::make('password')
-                                    ->label('Password')
-                                    ->password()
-                                    ->required()
-                                    ->minLength(8)
-                                    ->revealable(),
-                            ])
-                            ->createOptionUsing(function (array $data): int {
-                                $user = User::create([
-                                    'name' => $data['name'],
-                                    'email' => $data['email'],
-                                    'password' => Hash::make($data['password']),
-                                ]);
-
-                                // Sesuaikan nama role kalau berbeda di seeder kamu.
-                                $user->update(['role' => UserRole::PEMOHON]);
-
-                                return $user->getKey();
+                                return $user
+                                    ? "{$user->name} · {$user->email}"
+                                    : 'Belum terhubung ke akun pengguna';
                             })
-                            ->createOptionModalHeading('Buat Akun Pengguna Baru')
-                            ->helperText('Cari akun yang sudah terdaftar, atau klik "+" untuk membuat akun baru langsung dari sini.')
                             ->columnSpanFull(),
                     ]),
+
             ]);
     }
 }

@@ -66,8 +66,8 @@ class UserForm
                             ]),
                     ]),
 
-                Section::make('Profil & Administrasi Akun')
-                    ->description('Foto profil, status akun, dan catatan internal pengelola.')
+                Section::make('Profil Akun')
+                    ->description('Foto profil dan status akun. Data identitas pemohon dikelola pada profil Pemohon yang terhubung.')
                     ->schema([
                         FileUpload::make('avatar_url')
                             ->label('Foto Profil')
@@ -78,14 +78,8 @@ class UserForm
                             ->maxSize(2048)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->helperText('JPG/PNG/WebP, maksimal 2 MB.'),
-
-                        \Filament\Forms\Components\Textarea::make('catatan_akun')
-                            ->label('Catatan Akun')
-                            ->rows(4)
-                            ->maxLength(2000)
-                            ->placeholder('Catatan internal pengelola tentang akun ini.'),
                     ])
-                    ->columns(2),
+                    ->columns(1),
             ]);
     }
 }

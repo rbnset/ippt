@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'avatar_url', 'status_akun', 'catatan_akun'])]
+#[Fillable(['name', 'email', 'password', 'role', 'avatar_url', 'status_akun'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -66,9 +67,9 @@ class User extends Authenticatable
     /**
      * Data pemohon yang terhubung dengan akun.
      */
-    public function pemohon(): HasMany
+    public function pemohon(): HasOne
     {
-        return $this->hasMany(Pemohon::class);
+        return $this->hasOne(Pemohon::class);
     }
 
     public function permohonanDiverifikasi(): HasMany

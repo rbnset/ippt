@@ -41,26 +41,23 @@ class EditPemohon extends EditRecord
                     && $this->record->status_verifikasi !== 'terverifikasi')
                 ->form([
                     Textarea::make('catatan')
-                        ->label('Alasan / Catatan Perbaikan')
+                        ->label('Alasan Perubahan / Perbaikan')
                         ->required()
                         ->rows(6)
                         ->maxLength(2000)
                         ->placeholder('Jelaskan data yang tidak sesuai dan apa yang harus diperbaiki pemohon.'),
                 ])
-                ->modalHeading('Tolak Data & Minta Perbaikan')
-                ->modalSubmitActionLabel('Kirim Permintaan Perbaikan')
+                ->modalHeading('Minta Perubahan Data')
+                ->modalSubmitActionLabel('Kirim Alasan Perubahan')
                 ->action(function (array $data): void {
                     app(PemohonVerificationService::class)->reject($this->record, $data['catatan']);
                 }),
         ];
     }
 
-    protected function afterSave(): void
+    protected function getSavedNotificationTitle(): ?string
     {
-        Notification::make()
-            ->success()
-            ->title('Data pemohon diperbarui')
-            ->body('Gunakan tindakan verifikasi di bagian atas setelah data selesai diperiksa.')
-            ->send();
+        return null;
     }
+
 }

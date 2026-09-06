@@ -17,12 +17,12 @@ class VerificationHistoriesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('versi_data')->label('Versi')->badge(),
+            TextColumn::make('versi_data')->label('Versi Data')->badge()->description('Naik saat data terverifikasi diubah lalu dikirim ulang.'),
             TextColumn::make('aksi')->label('Aksi')->badge(),
             TextColumn::make('status_sebelumnya')->label('Sebelumnya')->placeholder('—'),
             TextColumn::make('status_sesudahnya')->label('Sesudahnya'),
-            TextColumn::make('catatan')->label('Catatan')->limit(70)->wrap()->placeholder('—'),
-            TextColumn::make('dilakukanOleh.name')->label('Petugas')->placeholder('—'),
+            TextColumn::make('catatan')->label('Alasan Perubahan')->limit(70)->wrap()->placeholder('—'),
+            TextColumn::make('dilakukanOleh.name')->label('Dilakukan Oleh')->placeholder('—'),
             TextColumn::make('dilakukan_pada')->label('Waktu')->dateTime('d/m/Y H:i')->sortable(),
         ])->recordActions([])->toolbarActions([])->defaultSort('dilakukan_pada','desc');
     }

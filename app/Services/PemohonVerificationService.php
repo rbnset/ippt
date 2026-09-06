@@ -46,7 +46,6 @@ class PemohonVerificationService
             $pemohon->email = $user->email;
             $pemohon->status_verifikasi = 'menunggu_verifikasi';
             $pemohon->diajukan_pada = now();
-            $pemohon->catatan_verifikasi = null;
             $pemohon->diverifikasi_oleh = null;
             $pemohon->diverifikasi_pada = null;
             $pemohon->save();
@@ -79,7 +78,6 @@ class PemohonVerificationService
         $pemohon->update([
             'status_verifikasi' => 'perlu_perubahan',
             'alasan_perubahan' => $reason,
-            'catatan_verifikasi' => null,
             'diverifikasi_oleh' => null,
             'diverifikasi_pada' => null,
             'diajukan_pada' => now(),
@@ -97,7 +95,6 @@ class PemohonVerificationService
 
         $pemohon->update([
             'status_verifikasi' => 'terverifikasi',
-            'catatan_verifikasi' => null,
             'diverifikasi_oleh' => auth()->id(),
             'diverifikasi_pada' => now(),
         ]);
@@ -119,13 +116,13 @@ class PemohonVerificationService
         $oldStatus = $pemohon->status_verifikasi;
         $pemohon->update([
             'status_verifikasi' => 'perlu_perbaikan',
-            'catatan_verifikasi' => $reason,
+            'alasan_perubahan' => $reason,
             'diverifikasi_oleh' => auth()->id(),
             'diverifikasi_pada' => now(),
         ]);
 
         $this->history($pemohon, 'ditolak', $oldStatus, 'perlu_perbaikan', $reason);
-        $this->notifyPemohon($pemohon, 'Data pemohon perlu diperbaiki', "Petugas meminta perbaikan: {$reason}", 'warning');
+        $this->notifyPemohon($pemohon, 'Data pemohon perlu diperbaiki', "Alasan perubahan/perbaikan: {$reason}", 'warning');
         Notification::make()->warning()->title('Perbaikan diminta')->body('Alasan sudah dikirim kepada pemohon.')->send();
     }
 
@@ -196,7 +193,7 @@ class PemohonVerificationService
 
         foreach ($users as $user) {
             $notification = Notification::make()->title($title)->body($body)->actions([
-                Action::make('review')->label('Tinjau Data Pemohon')->url($url),
+                Action::make('review')->label('Tinjau Data Pemohon')->url($url)->markAsRead(),
             ]);
             match ($level) {
                 'success' => $notification->success(),
@@ -213,7 +210,7 @@ class PemohonVerificationService
         $user = $pemohon->loadMissing('user')->user;
         if (! $user) return;
         $notification = Notification::make()->title($title)->body($body)->actions([
-            Action::make('open')->label('Buka Dasbor')->url(\App\Filament\Pages\Dashboard::getUrl()),
+            Action::make('open')->label('Buka Dasbor')->url(\App\Filament\Pages\Dashboard::getUrl())->markAsRead(),
         ]);
         match ($level) {
             'success' => $notification->success(),

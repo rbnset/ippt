@@ -241,14 +241,19 @@ class KeputusanIpptRelationManager extends RelationManager
 
                             $pemohonUser = $record->permohonan?->pemohon?->user;
                             if ($pemohonUser) {
-                                Notification::make()->success()->title('Keputusan IPPT ditetapkan')->body(
-                                    $record->jenis_keputusan === JenisKeputusan::Terbit
+                                $isTerbit = $record->jenis_keputusan === JenisKeputusan::Terbit;
+                                $reason = filled($record->alasan) ? " Alasan: {$record->alasan}" : '';
+                                $decisionNotification = Notification::make()
+                                    ->title($isTerbit ? 'IPPT diterbitkan' : 'Permohonan IPPT ditolak')
+                                    ->body($isTerbit
                                         ? 'Keputusan IPPT telah ditetapkan dan PDF resmi tersedia.'
-                                        : 'Keputusan IPPT telah ditetapkan sebagai penolakan.'
-                                )->sendToDatabase($pemohonUser);
+                                        : 'Permohonan IPPT telah ditetapkan sebagai ditolak.' . $reason
+                                    );
+                                $isTerbit ? $decisionNotification->success() : $decisionNotification->danger();
+                                $decisionNotification->sendToDatabase($pemohonUser);
                             }
 
-                            foreach (\App\Models\User::query()->whereIn('role', [UserRole::STAFF->value, UserRole::KADIS->value])->get() as $recipient) {
+                            foreach (\App\Models\User::query()->whereIn('role', [UserRole::ADMIN->value, UserRole::STAFF->value, UserRole::KADIS->value])->get() as $recipient) {
                                 Notification::make()->info()->title('Keputusan IPPT ditetapkan')->body(
                                     "Keputusan {$record->nomor_keputusan} telah ditetapkan."
                                 )->sendToDatabase($recipient);

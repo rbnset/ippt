@@ -97,7 +97,7 @@
             @elseif($pemohon && $status === 'perlu_perbaikan')
                 <section class="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-5 dark:border-rose-400/20 dark:bg-rose-400/5 sm:px-8">
                     <p class="text-sm font-black text-rose-800 dark:text-rose-200">Data belum dapat diverifikasi</p>
-                    <p class="mt-1 text-sm leading-6 text-rose-700 dark:text-rose-300">{{ $pemohon->catatan_verifikasi ?: 'Silakan periksa kembali data sebelum mengirim ulang.' }}</p>
+                    <p class="mt-1 text-sm leading-6 text-rose-700 dark:text-rose-300">{{ $pemohon->alasan_perubahan ?: 'Silakan periksa kembali data sebelum mengirim ulang.' }}</p>
                 </section>
             @elseif($pemohon && $status === 'perlu_perubahan')
                 <section class="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-5 dark:border-amber-400/20 dark:bg-amber-400/5 sm:px-8">

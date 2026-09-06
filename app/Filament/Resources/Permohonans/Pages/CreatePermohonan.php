@@ -9,6 +9,8 @@ use App\Filament\Resources\Permohonans\PermohonanResource;
 use App\Models\DokumenPermohonan;
 use App\Services\PermohonanNumberService;
 use Filament\Notifications\Notification;
+use App\Enums\UserRole;
+use App\Services\IpptWorkflowNotificationService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -65,6 +67,13 @@ class CreatePermohonan extends CreateRecord
             ->title('Permohonan berhasil diajukan')
             ->body("Nomor permohonan {$this->record->nomor_permohonan}. Seluruh dokumen persyaratan telah terhubung dengan permohonan.")
             ->send();
+
+        app(IpptWorkflowNotificationService::class)->roles(
+            [UserRole::ADMIN, UserRole::STAFF],
+            'Permohonan IPPT baru',
+            "Permohonan {$this->record->nomor_permohonan} dari {$this->record->pemohon?->nama} telah diajukan dan menunggu pemeriksaan.",
+            'info',
+        );
     }
 
     private function storeRequiredDocuments(): void

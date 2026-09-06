@@ -35,7 +35,6 @@ class Pemohon extends Model
         'status_verifikasi',
         'diajukan_pada',
         'versi_data',
-        'catatan_verifikasi',
         'alasan_perubahan',
         'diverifikasi_oleh',
         'diverifikasi_pada',

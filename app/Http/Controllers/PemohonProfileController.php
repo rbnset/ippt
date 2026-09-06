@@ -59,7 +59,7 @@ class PemohonProfileController extends Controller
 
         $data['email'] = $user->email;
         $data['status_verifikasi'] = 'menunggu_verifikasi';
-        $data['catatan_verifikasi'] = null;
+        $data['alasan_perubahan'] = null;
         $data['diverifikasi_oleh'] = null;
         $data['diverifikasi_pada'] = null;
 
