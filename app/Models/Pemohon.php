@@ -15,6 +15,7 @@ class Pemohon extends Model
 
     protected $casts = [
         'diverifikasi_pada' => 'datetime',
+        'diajukan_pada' => 'datetime',
     ];
 
     protected $fillable = [
@@ -30,8 +31,12 @@ class Pemohon extends Model
         'kelurahan',
         'kecamatan',
         'kota',
+        'nomor_antrian',
         'status_verifikasi',
+        'diajukan_pada',
+        'versi_data',
         'catatan_verifikasi',
+        'alasan_perubahan',
         'diverifikasi_oleh',
         'diverifikasi_pada',
     ];
@@ -59,7 +64,12 @@ class Pemohon extends Model
 
     public function isEditableByPemohon(): bool
     {
-        return in_array($this->status_verifikasi, ['menunggu_verifikasi', 'perlu_perbaikan'], true);
+        return in_array($this->status_verifikasi, ['perlu_perbaikan', 'perlu_perubahan'], true);
+    }
+
+    public function verificationHistories(): HasMany
+    {
+        return $this->hasMany(PemohonVerificationHistory::class);
     }
 
     public function permohonan(): HasMany

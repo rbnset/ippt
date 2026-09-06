@@ -7,6 +7,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -16,6 +17,8 @@ class UsersTable
     {
         return $table
             ->columns([
+                ImageColumn::make('avatar_url')->label('Foto')->disk('public')->circular(),
+
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable()
@@ -25,6 +28,12 @@ class UsersTable
                     ->label('Email')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('status_akun')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => $state === 'aktif' ? 'Aktif' : 'Nonaktif')
+                    ->color(fn (?string $state): string => $state === 'aktif' ? 'success' : 'danger'),
 
                 TextColumn::make('role')
                     ->label('Role')

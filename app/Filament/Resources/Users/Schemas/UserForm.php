@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\UserRole;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
@@ -52,8 +53,39 @@ class UserForm
                                     ->native(false)
                                     ->searchable()
                                     ->preload(),
+
+                                Select::make('status_akun')
+                                    ->label('Status Akun')
+                                    ->options([
+                                        'aktif' => 'Aktif',
+                                        'nonaktif' => 'Nonaktif',
+                                    ])
+                                    ->default('aktif')
+                                    ->required()
+                                    ->native(false),
                             ]),
                     ]),
+
+                Section::make('Profil & Administrasi Akun')
+                    ->description('Foto profil, status akun, dan catatan internal pengelola.')
+                    ->schema([
+                        FileUpload::make('avatar_url')
+                            ->label('Foto Profil')
+                            ->image()
+                            ->avatar()
+                            ->disk('public')
+                            ->directory('avatars')
+                            ->maxSize(2048)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->helperText('JPG/PNG/WebP, maksimal 2 MB.'),
+
+                        \Filament\Forms\Components\Textarea::make('catatan_akun')
+                            ->label('Catatan Akun')
+                            ->rows(4)
+                            ->maxLength(2000)
+                            ->placeholder('Catatan internal pengelola tentang akun ini.'),
+                    ])
+                    ->columns(2),
             ]);
     }
 }

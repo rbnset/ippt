@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 namespace App\Filament\Pages\Auth;
+
+use App\Filament\Pages\Dashboard;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Contracts\Support\Htmlable;
@@ -26,5 +28,11 @@ class Login extends BaseLogin {
             ->placeholder('Masukkan kata sandi')
             ->autocomplete('current-password')
             ->revealable();
+    }
+
+
+    protected function getRedirectUrl(): string
+    {
+        return Dashboard::getUrl();
     }
 }

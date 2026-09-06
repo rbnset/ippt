@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages\Auth;
 
 use App\Enums\UserRole;
+use App\Filament\Pages\Dashboard;
 use Filament\Auth\Pages\Register as BaseRegister;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
@@ -79,6 +80,6 @@ class Register extends BaseRegister
 
     protected function getRedirectUrl(): string
     {
-        return route('pemohon.profil');
+        return Dashboard::getUrl();
     }
 }

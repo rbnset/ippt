@@ -10,18 +10,16 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Filament\Pages\Dashboard;
 
 class PemohonProfileController extends Controller
 {
-    public function edit(Request $request): View|RedirectResponse
+    public function edit(Request $request): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user?->hasRole(UserRole::PEMOHON), 403);
 
-        return view('pemohon.profil', [
-            'pemohon' => $user->pemohon()->first(),
-            'user' => $user,
-        ]);
+        return redirect()->to(Dashboard::getUrl());
     }
 
     public function update(Request $request): RedirectResponse

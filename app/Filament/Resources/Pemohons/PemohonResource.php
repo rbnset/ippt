@@ -9,13 +9,14 @@ use App\Filament\Resources\Pemohons\Pages\ViewPemohon;
 use App\Filament\Resources\Pemohons\Schemas\PemohonForm;
 use App\Filament\Resources\Pemohons\Schemas\PemohonInfolist;
 use App\Filament\Resources\Pemohons\Tables\PemohonsTable;
+use App\Filament\Resources\Pemohons\RelationManagers\VerificationHistoriesRelationManager;
+use App\Enums\UserRole;
 use App\Models\Pemohon;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use App\Enums\UserRole;
 
 class PemohonResource extends Resource
 {
@@ -34,6 +35,16 @@ class PemohonResource extends Resource
     protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'nama';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF]) ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     public static function getEloquentQuery(): Builder
     {
@@ -64,7 +75,7 @@ class PemohonResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            VerificationHistoriesRelationManager::class,
         ];
     }
 

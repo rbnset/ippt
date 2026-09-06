@@ -122,6 +122,39 @@ class PemohonForm
                     ])
                     ->columns(3),
 
+
+                Section::make('Status Verifikasi')
+                    ->description('Informasi ini dikendalikan oleh proses verifikasi. Petugas dapat menyetujui atau meminta perbaikan melalui tindakan di halaman ini.')
+                    ->icon(Heroicon::ShieldCheck)
+                    ->schema([
+                        TextInput::make('nomor_antrian')
+                            ->label('Nomor Antrian')
+                            ->disabled()
+                            ->dehydrated(false),
+                        Select::make('status_verifikasi')
+                            ->label('Status')
+                            ->options([
+                                'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                                'perlu_perbaikan' => 'Perlu Perbaikan',
+                                'perlu_perubahan' => 'Menunggu Perubahan Data',
+                                'terverifikasi' => 'Terverifikasi',
+                            ])
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->native(false),
+                        Textarea::make('catatan_verifikasi')
+                            ->label('Catatan Verifikasi')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->rows(4),
+                        Textarea::make('alasan_perubahan')
+                            ->label('Alasan Perubahan Data')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->rows(4),
+                    ])
+                    ->columns(2),
+
                 Section::make('Akun Pengguna')
                     ->description('Opsional. Hubungkan data pemohon ini dengan akun login supaya pemohon bisa memantau status permohonannya sendiri. Boleh dikosongkan jika pemohon belum atau tidak memiliki akun.')
                     ->icon(Heroicon::UserCircle)
