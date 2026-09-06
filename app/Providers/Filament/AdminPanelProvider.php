@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Register;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -28,10 +29,16 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->registration(Register::class)
             ->databaseNotifications()
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->darkMode()
+            ->viteTheme('resources/css/filament/admin/theme.css')
+            ->brandLogo(fn () => asset('images/logo.png'))
+            ->darkModeBrandLogo(fn () => asset('images/logo.png'))
+            ->brandLogoHeight('2.75rem')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

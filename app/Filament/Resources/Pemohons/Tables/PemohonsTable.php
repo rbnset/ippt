@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Pemohons\Tables;
 
+use App\Enums\UserRole;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
+use Filament\Notifications\Notification;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -65,6 +68,22 @@ class PemohonsTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('status_verifikasi')
+                    ->label('Status Verifikasi')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'terverifikasi' => 'Terverifikasi',
+                        'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                        'perlu_perbaikan' => 'Perlu Perbaikan',
+                        default => ucfirst(str_replace('_', ' ', $state)),
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'terverifikasi' => 'success',
+                        'perlu_perbaikan' => 'warning',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
                 TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->dateTime('d M Y H:i')
@@ -84,6 +103,38 @@ class PemohonsTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('verifikasi')
+                    ->label('Verifikasi')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn ($record): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF]) && $record->status_verifikasi !== 'terverifikasi')
+                    ->action(function ($record): void {
+                        $record->update([
+                            'status_verifikasi' => 'terverifikasi',
+                            'catatan_verifikasi' => null,
+                            'diverifikasi_oleh' => auth()->id(),
+                            'diverifikasi_pada' => now(),
+                        ]);
+                        Notification::make()->success()->title('Data pemohon terverifikasi')->body('Pemohon sekarang dapat mengajukan permohonan IPPT.')->send();
+                    }),
+                Action::make('minta_perbaikan')
+                    ->label('Minta Perbaikan')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('catatan_verifikasi')->label('Catatan perbaikan')->required()->rows(4),
+                    ])
+                    ->visible(fn ($record): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF]) && $record->status_verifikasi !== 'terverifikasi')
+                    ->action(function ($record, array $data): void {
+                        $record->update([
+                            'status_verifikasi' => 'perlu_perbaikan',
+                            'catatan_verifikasi' => $data['catatan_verifikasi'],
+                            'diverifikasi_oleh' => auth()->id(),
+                            'diverifikasi_pada' => now(),
+                        ]);
+                        Notification::make()->warning()->title('Perbaikan diminta')->body('Catatan perbaikan tersimpan dan dapat dilihat pemohon.')->send();
+                    }),
             ])
 
             ->toolbarActions([

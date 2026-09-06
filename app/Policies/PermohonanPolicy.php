@@ -31,11 +31,15 @@ class PermohonanPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasAnyRole([
-            UserRole::ADMIN,
-            UserRole::PEMOHON,
-            UserRole::STAFF,
-        ]);
+        if ($user->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])) {
+            return true;
+        }
+
+        if ($user->hasRole(UserRole::PEMOHON)) {
+            return $user->pemohon()->where('status_verifikasi', 'terverifikasi')->exists();
+        }
+
+        return false;
     }
 
     public function update(User $user, Permohonan $record): bool

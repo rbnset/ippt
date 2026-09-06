@@ -1,9 +1,48 @@
 @import 'tailwindcss';
 
+/* Landing portal memakai class .dark yang sama dengan Filament.
+   Tailwind v4 perlu variant eksplisit agar dark: mengikuti class tersebut. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../../app/Filament/**/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+html {
+    color-scheme: light;
+}
+
+html.dark {
+    color-scheme: dark;
+}
+
+.theme-option {
+    color: rgb(71 85 105);
+}
+
+.theme-option:hover {
+    background: rgb(255 255 255);
+}
+
+html.dark .theme-option {
+    color: rgb(203 213 225);
+}
+
+html.dark .theme-option:hover {
+    background: rgb(30 41 59);
+}
+
+:focus-visible {
+    outline: 3px solid color-mix(in srgb, #f59e0b 75%, transparent);
+    outline-offset: 3px;
+}
+
+::selection {
+    background: #f59e0b;
+    color: #0f172a;
 }

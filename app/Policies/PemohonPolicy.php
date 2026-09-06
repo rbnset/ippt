@@ -17,17 +17,21 @@ class PemohonPolicy
 
     public function view(User $user, Pemohon $record): bool
     {
-        return $this->viewAny($user);
+        if ($user->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])) {
+            return true;
+        }
+
+        return $user->hasRole(UserRole::PEMOHON) && $record->user_id === $user->id;
     }
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user);
+        return $user->hasAnyRole([UserRole::ADMIN, UserRole::STAFF]);
     }
 
     public function update(User $user, Pemohon $record): bool
     {
-        return $this->viewAny($user);
+        return $user->hasAnyRole([UserRole::ADMIN, UserRole::STAFF]);
     }
 
     public function delete(User $user, Pemohon $record): bool { return $user->isAdmin(); }
