@@ -45,6 +45,18 @@ class CreatePermohonan extends CreateRecord
             $data['dokumen_check_info'],
         );
 
+        $user = Auth::user();
+
+        if ($user?->hasRole(UserRole::PEMOHON)) {
+            $pemohonId = $user->pemohon()->value('id');
+
+            abort_if(! $pemohonId, 403, 'Akun pemohon belum memiliki data pemohon.');
+            abort_unless($user->pemohon()->where('status_verifikasi', 'terverifikasi')->exists(), 403, 'Data pemohon belum terverifikasi.');
+
+            // Jangan percaya nilai pemohon_id dari browser untuk pengajuan online.
+            $data['pemohon_id'] = $pemohonId;
+        }
+
         $date = now();
         $data['nomor_permohonan'] = app(PermohonanNumberService::class)->generate($date);
         $data['tanggal_permohonan'] = $date->toDateString();
@@ -73,12 +85,14 @@ class CreatePermohonan extends CreateRecord
             'Permohonan IPPT baru',
             "Permohonan {$this->record->nomor_permohonan} dari {$this->record->pemohon?->nama} menunggu pemeriksaan.",
             'info',
+            app(IpptWorkflowNotificationService::class)->applicationAction($this->record, 'Buka Permohonan'),
         );
         app(IpptWorkflowNotificationService::class)->pemohon(
             $this->record,
             'Permohonan IPPT berhasil diajukan',
             "Permohonan {$this->record->nomor_permohonan} telah diterima dan masuk ke tahap pemeriksaan.",
             'success',
+            app(IpptWorkflowNotificationService::class)->applicationAction($this->record, 'Lihat Permohonan'),
         );
     }
 
@@ -105,7 +119,7 @@ class CreatePermohonan extends CreateRecord
                 ? Storage::disk('private')->size($path)
                 : null;
 
-            DokumenPermohonan::create([
+            $document = DokumenPermohonan::create([
                 'permohonan_id' => $this->record->id,
                 'diunggah_oleh' => Auth::id(),
                 'jenis_dokumen' => $jenis,
@@ -114,6 +128,18 @@ class CreatePermohonan extends CreateRecord
                 'tipe_file' => strtolower(pathinfo($path, PATHINFO_EXTENSION)),
                 'ukuran_file' => $size,
                 'status' => StatusDokumen::Menunggu,
+            ]);
+
+            $organizedPath = app(\App\Services\DokumenPermohonanStorageService::class)->organize(
+                $this->record->fresh('pemohon'),
+                $document,
+                $path,
+            );
+
+            $document->update([
+                'nama_file' => basename($organizedPath),
+                'lokasi_file' => $organizedPath,
+                'ukuran_file' => Storage::disk('private')->size($organizedPath),
             ]);
         }
     }

@@ -11,7 +11,6 @@ use App\Models\Permohonan;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Filament\Notifications\Notification;
 
 class DokumenPermohonanWorkflowService
 {
@@ -97,6 +96,18 @@ class DokumenPermohonanWorkflowService
                 'catatan' => null,
             ]);
 
+            $organizedPath = app(DokumenPermohonanStorageService::class)->organize(
+                $permohonan->fresh('pemohon'),
+                $document,
+                $path,
+            );
+
+            $document->update([
+                'nama_file' => basename($organizedPath),
+                'lokasi_file' => $organizedPath,
+                'ukuran_file' => $disk->size($organizedPath),
+            ]);
+
             // If every previous rejection has now been replaced, the application
             // returns to verification. Otherwise it remains returned.
             $hasOtherRejection = collect($this->latestByType($permohonan->fresh()))
@@ -112,23 +123,5 @@ class DokumenPermohonanWorkflowService
         });
     }
 
-    public function notifyPemohonRejected(DokumenPermohonan $document): void
-    {
-        $user = $document->permohonan?->pemohon?->user;
 
-        if (! $user) {
-            return;
-        }
-
-        Notification::make()
-            ->danger()
-            ->title('Dokumen perlu diperbaiki')
-            ->body(sprintf(
-                '%s pada permohonan %s ditolak. Alasan: %s',
-                $document->jenis_dokumen->getLabel(),
-                $document->permohonan->nomor_permohonan,
-                $document->catatan ?: 'Silakan periksa kembali dokumen dan unggah berkas yang sesuai.',
-            ))
-            ->sendToDatabase($user, isEventDispatched: true);
-    }
 }

@@ -65,11 +65,11 @@ class PermohonanResource extends Resource
     public static function getRelations(): array
     {
         return [
-            DokumenPermohonansRelationManager::class,
-            PemeriksaanLapanganRelationManager::class,
-            RekomendasiTeknisRelationManager::class,
-            RisalahPertimbanganRelationManager::class,
-            KeputusanIpptRelationManager::class,
+            'dokumen' => DokumenPermohonansRelationManager::class,
+            'pemeriksaan' => PemeriksaanLapanganRelationManager::class,
+            'rekomendasi' => RekomendasiTeknisRelationManager::class,
+            'risalah' => RisalahPertimbanganRelationManager::class,
+            'keputusan' => KeputusanIpptRelationManager::class,
         ];
     }
 

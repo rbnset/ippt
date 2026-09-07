@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Permohonans\Schemas;
 
 use App\Enums\JenisDokumen;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -52,6 +53,43 @@ class PermohonanForm
                                             ->preload()
                                             ->required()
                                             ->native(false)
+                                            ->columnSpanFull()
+                                            ->visible(fn (): bool => ! auth()->user()?->hasRole(\App\Enums\UserRole::PEMOHON)),
+
+                                        Hidden::make('pemohon_id')
+                                            ->default(fn (): ?int => auth()->user()?->pemohon?->id)
+                                            ->required()
+                                            ->dehydrated()
+                                            ->visible(fn (): bool => auth()->user()?->hasRole(\App\Enums\UserRole::PEMOHON)),
+
+                                        Section::make('Data Pemohon Terdaftar')
+                                            ->description('Identitas diambil otomatis dari akun yang sedang login. Data ini tidak dapat diganti saat mengajukan permohonan secara online.')
+                                            ->icon(Heroicon::User)
+                                            ->visible(fn (): bool => auth()->user()?->hasRole(\App\Enums\UserRole::PEMOHON))
+                                            ->schema([
+                                                Grid::make(2)->schema([
+                                                    TextInput::make('pemohon_nama_display')
+                                                        ->label('Nama Pemohon')
+                                                        ->default(fn (): ?string => auth()->user()?->pemohon?->nama)
+                                                        ->disabled()
+                                                        ->dehydrated(false),
+                                                    TextInput::make('pemohon_nik_display')
+                                                        ->label('NIK')
+                                                        ->default(fn (): ?string => auth()->user()?->pemohon?->nik)
+                                                        ->disabled()
+                                                        ->dehydrated(false),
+                                                    TextInput::make('pemohon_telepon_display')
+                                                        ->label('Nomor Telepon / WhatsApp')
+                                                        ->default(fn (): ?string => auth()->user()?->pemohon?->nomor_telepon)
+                                                        ->disabled()
+                                                        ->dehydrated(false),
+                                                    TextInput::make('pemohon_email_display')
+                                                        ->label('Email Akun')
+                                                        ->default(fn (): ?string => auth()->user()?->email)
+                                                        ->disabled()
+                                                        ->dehydrated(false),
+                                                ]),
+                                            ])
                                             ->columnSpanFull(),
 
                                         Toggle::make('diwakilkan')
@@ -131,7 +169,7 @@ class PermohonanForm
                                         ->label('1. KTP Pemohon')
                                         ->required()
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -144,7 +182,7 @@ class PermohonanForm
                                         ->visible(fn (Get $get): bool => (bool) $get('diwakilkan'))
                                         ->required(fn (Get $get): bool => (bool) $get('diwakilkan'))
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -156,7 +194,7 @@ class PermohonanForm
                                         ->label('3. Bukti Hak Atas Tanah')
                                         ->required()
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -168,7 +206,7 @@ class PermohonanForm
                                         ->visible(fn (Get $get): bool => (bool) $get('diwakilkan'))
                                         ->required(fn (Get $get): bool => (bool) $get('diwakilkan'))
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -180,7 +218,7 @@ class PermohonanForm
                                         ->label('5. Surat Pernyataan Tanah Tidak Dalam Sengketa')
                                         ->required()
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -191,7 +229,7 @@ class PermohonanForm
                                         ->label('6. Bukti Pelunasan PBB Tahun Terakhir')
                                         ->required()
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)
@@ -202,7 +240,7 @@ class PermohonanForm
                                         ->label('7. Denah dan Koordinat Lokasi Tanah')
                                         ->required()
                                         ->disk('private')
-                                        ->directory('dokumen-ippt')
+                                        ->directory('dokumen-ippt-upload')
                                         ->visibility('private')
                                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                         ->maxSize(10240)

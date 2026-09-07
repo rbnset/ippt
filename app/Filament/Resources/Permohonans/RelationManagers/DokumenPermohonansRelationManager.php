@@ -147,7 +147,7 @@ class DokumenPermohonansRelationManager extends RelationManager
                         $record->update(['status' => StatusDokumen::Ditolak, 'catatan' => $data['catatan']]);
                         $permohonan = $record->permohonan;
                         if ($permohonan) $permohonan->update(['status' => StatusPermohonan::Dikembalikan]);
-                        app(DokumenPermohonanWorkflowService::class)->notifyPemohonRejected($record->fresh(['permohonan.pemohon.user']));
+                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohonDocumentRejected($record->fresh(['permohonan.pemohon.user']));
                         Notification::make()->danger()->title('Dokumen ditolak')->body('Pemohon sudah menerima notifikasi beserta arahan perbaikan.')->send();
                     }),
 
@@ -187,7 +187,7 @@ class DokumenPermohonansRelationManager extends RelationManager
 
 Alasan / arahan: ' . ($record->catatan ?: 'Pastikan dokumen lengkap, jelas, dan sesuai persyaratan.'))
                         ->form([
-                            FileUpload::make('lokasi_file')->label('File Pengganti')->disk('private')->directory('dokumen-ippt')->visibility('private')
+                            FileUpload::make('lokasi_file')->label('File Pengganti')->disk('private')->directory('dokumen-ippt-upload')->visibility('private')
                                 ->acceptedFileTypes(['application/pdf','image/jpeg','image/png'])->maxSize(10240)->downloadable(false)->openable(false)->required()
                                 ->helperText('PDF/JPG/PNG, maksimal 10 MB.'),
                             Textarea::make('catatan')->label('Catatan Perbaikan')->rows(3)->maxLength(1000)->helperText('Opsional. Jelaskan perbaikan yang Anda lakukan.'),
@@ -195,7 +195,11 @@ Alasan / arahan: ' . ($record->catatan ?: 'Pastikan dokumen lengkap, jelas, dan 
                         ->action(function (DokumenPermohonan $record, array $data): void {
                             $newDocument = app(DokumenPermohonanWorkflowService::class)->uploadReplacement($this->getOwnerRecord(), $record, $data['lokasi_file'], Auth::user());
                             $newDocument->update(['catatan' => $data['catatan'] ?? null]);
-                            Notification::make()->success()->title('Dokumen berhasil dikirim ulang')->body('Dokumen baru menunggu verifikasi dan tidak dapat diganti lagi sebelum diverifikasi.')->send();
+
+                            app(\App\Services\IpptWorkflowNotificationService::class)->rolesDocumentReuploaded($newDocument->fresh(['permohonan.pemohon']));
+                            app(\App\Services\IpptWorkflowNotificationService::class)->pemohonDocumentReuploaded($newDocument->fresh(['permohonan.pemohon.user']));
+
+                            Notification::make()->success()->title('Dokumen berhasil dikirim ulang')->body('Dokumen baru menunggu verifikasi dan notifikasi sudah dikirim kepada Admin/Staff.')->send();
                         }),
                     DeleteAction::make()
                         ->label('Hapus')
