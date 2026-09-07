@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\StatusPemeriksaan;
 use App\Models\RekomendasiTeknis;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -17,10 +18,18 @@ class RekomendasiTeknisPdfService
             'disetujuiOleh',
         ]);
 
+        $bap = $rekomendasi->permohonan?->pemeriksaanLapangan()
+            ->where('status', StatusPemeriksaan::Final->value)
+            ->orderByDesc('versi')
+            ->first();
+
+        $bap?->load('ketuaTim');
+
         return Pdf::loadView('pdf.ippt.rekomendasi-teknis', [
             'rekomendasi' => $rekomendasi,
             'permohonan' => $rekomendasi->permohonan,
             'pemohon' => $rekomendasi->permohonan->pemohon,
+            'bap' => $bap,
             'logoPath' => public_path('images/logo.png'),
         ])
             ->setPaper('a4')

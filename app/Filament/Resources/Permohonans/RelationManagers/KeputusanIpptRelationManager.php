@@ -40,7 +40,7 @@ class KeputusanIpptRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kadis']);
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kabid', 'kadis']);
     }
 
     public function form(Schema $schema): Schema

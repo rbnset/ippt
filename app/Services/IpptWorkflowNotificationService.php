@@ -152,13 +152,15 @@ class IpptWorkflowNotificationService
         );
     }
 
-    public function applicationAction(Permohonan $permohonan, string $label = 'Buka Permohonan'): Action
+    public function applicationAction(Permohonan $permohonan, string $label = 'Buka Permohonan', ?string $relation = null): Action
     {
+        $url = $this->permohonanUrl($permohonan, $relation);
+
         return Action::make('bukaPermohonan')
             ->label($label)
             ->icon('heroicon-o-arrow-top-right-on-square')
             ->button()
-            ->url($this->permohonanUrl($permohonan))
+            ->url($url)
             ->markAsRead();
     }
 
@@ -184,8 +186,14 @@ class IpptWorkflowNotificationService
         $this->databaseNotifications->send($user, $notification);
     }
 
-    private function permohonanUrl(Permohonan $permohonan): string
+    private function permohonanUrl(Permohonan $permohonan, ?string $relation = null): string
     {
-        return PermohonanResource::getUrl('view', ['record' => $permohonan]);
+        $url = PermohonanResource::getUrl('view', ['record' => $permohonan]);
+
+        if ($relation) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query(['relation' => $relation]);
+        }
+
+        return $url;
     }
 }

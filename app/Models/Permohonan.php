@@ -70,7 +70,10 @@ class Permohonan extends Model
 
             $user->hasRole('staff') => $query->whereIn('status', StatusPermohonan::visibleForStaff()),
             $user->hasRole('tim_teknis') => $query->whereIn('status', StatusPermohonan::visibleForTimTeknis()),
-            $user->hasRole('kabid') => $query->whereIn('status', StatusPermohonan::visibleForKabid()),
+            // Kabid berfungsi sebagai reviewer/approver rekomendasi teknis.
+            // Ia perlu dapat membuka seluruh berkas Permohonan sebagai konteks
+            // review, tetapi hak tulis tetap dikunci oleh Policy/Relation Manager.
+            $user->hasRole('kabid') => $query,
             $user->hasRole('kadis') => $query->whereIn('status', StatusPermohonan::visibleForKadis()),
 
             default => $query->whereRaw('1 = 0'),

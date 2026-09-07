@@ -70,6 +70,7 @@
         <tr><td class="label">Penggunaan Dimohonkan</td><td>: {{ $permohonan->penggunaan_dimohonkan }}</td></tr>
         <tr><td class="label">Referensi BAP Lapangan</td><td>: {{ $rekomendasi->nomor_bap_referensi ?: '-' }}</td></tr>
         <tr><td class="label">Tanggal Rekomendasi</td><td>: {{ $rekomendasi->tanggal_rekomendasi?->format('d/m/Y') ?: '-' }}</td></tr>
+        <tr><td class="label">Ketua Tim Pemeriksa</td><td>: {{ $bap?->ketuaTim?->name ?: ($rekomendasi->disusunOleh?->name ?: '-') }}</td></tr>
     </table>
 
     <div class="section-title">III. DASAR / RUJUKAN</div>
@@ -97,8 +98,8 @@
 
     <table class="signature">
         <tr>
-            <td>Disusun oleh,<div class="space-sign"></div><strong><u>{{ $rekomendasi->disusunOleh?->name ?: '-' }}</u></strong></td>
-            <td>Disetujui oleh,<div class="space-sign"></div><strong><u>{{ $rekomendasi->disetujuiOleh?->name ?: 'Pejabat Berwenang' }}</u></strong></td>
+            <td>Disusun oleh,<br>Ketua Tim Pemeriksa<div class="space-sign"></div><strong><u>{{ $bap?->ketuaTim?->name ?: ($rekomendasi->disusunOleh?->name ?: '-') }}</u></strong></td>
+            <td>Disetujui oleh,<br>Kepala Bidang<div class="space-sign"></div><strong><u>{{ $rekomendasi->disetujuiOleh?->name ?: 'Pejabat Berwenang' }}</u></strong></td>
         </tr>
     </table>
 

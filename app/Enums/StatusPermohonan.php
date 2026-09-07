@@ -51,12 +51,24 @@ enum StatusPermohonan: string implements HasColor, HasLabel
 
     public static function visibleForTimTeknis(): array
     {
-        return [self::Verifikasi->value, self::ProsesTeknis->value];
+        return [
+            self::Verifikasi->value,
+            self::ProsesTeknis->value,
+            self::Rekomendasi->value,
+            self::MenungguRisalah->value,
+            self::Keputusan->value,
+            self::Diterbitkan->value,
+            self::Ditolak->value,
+        ];
     }
 
+    /**
+     * Kabid dapat melihat seluruh Permohonan sebagai konteks review.
+     * Hak perubahan tidak mengikuti visibility ini; update tetap ditolak Policy.
+     */
     public static function visibleForKabid(): array
     {
-        return [self::ProsesTeknis->value, self::Rekomendasi->value];
+        return array_map(static fn (self $status) => $status->value, self::cases());
     }
 
     public static function visibleForKadis(): array

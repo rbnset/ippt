@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Permohonans\Tables;
 
 use App\Enums\StatusPermohonan;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -85,8 +86,13 @@ class PermohonansTable
             ])
 
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                ])
+                    ->label('Lainnya')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->color('gray'),
             ])
 
             ->toolbarActions([

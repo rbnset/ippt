@@ -373,6 +373,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
+                ActionGroup::make([
                 static::fileViewAction(attribute: 'generated_bap_path', label: 'Buka BAP', name: 'buka_bap'),
                 static::fileDownloadAction(attribute: 'generated_bap_path', label: 'Unduh BAP', name: 'unduh_bap'),
                 Action::make('cetak_bap')
@@ -438,7 +439,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         $record->delete();
                     }),
 
-                ActionGroup::make([
+                
                     EditAction::make()
                         ->modalWidth('4xl')
                         ->label('Edit Draf')
@@ -463,6 +464,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         ->before(function (PemeriksaanLapangan $record): void {
                             self::deleteDraftFiles($record);
                         }),
+
                 ])
                     ->label('Lainnya')
                     ->icon('heroicon-m-ellipsis-vertical')

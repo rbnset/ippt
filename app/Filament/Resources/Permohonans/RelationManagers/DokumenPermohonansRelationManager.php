@@ -114,6 +114,7 @@ class DokumenPermohonansRelationManager extends RelationManager
                 };
             })
             ->recordActions([
+                ActionGroup::make([
                 Action::make('terima')
                     ->label('Terima')
                     ->icon('heroicon-o-check-circle')
@@ -151,8 +152,7 @@ class DokumenPermohonansRelationManager extends RelationManager
                         Notification::make()->danger()->title('Dokumen ditolak')->body('Pemohon sudah menerima notifikasi beserta arahan perbaikan.')->send();
                     }),
 
-                ActionGroup::make([
-                    static::fileViewAction(label: 'Lihat', name: 'lihat_file'),
+                static::fileViewAction(label: 'Lihat', name: 'lihat_file'),
                     static::fileDownloadAction(label: 'Unduh', name: 'unduh_file'),
                     Action::make('cetak')
                         ->label('Cetak')
@@ -207,7 +207,10 @@ Alasan / arahan: ' . ($record->catatan ?: 'Pastikan dokumen lengkap, jelas, dan 
                         ->before(function (DokumenPermohonan $record): void {
                             if ($record->lokasi_file && Storage::disk('private')->exists($record->lokasi_file)) Storage::disk('private')->delete($record->lokasi_file);
                         }),
-                ])->label('Lainnya')->icon('heroicon-m-ellipsis-vertical')->color('gray'),
+            ])
+                ->label('Lainnya')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray'),
             ])
             ->emptyStateHeading('Belum ada dokumen')
             ->emptyStateDescription('Dokumen persyaratan akan tampil di sini setelah permohonan dibuat.')

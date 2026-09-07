@@ -8,7 +8,6 @@ use App\Models\RisalahPertimbangan;
 use App\Enums\StatusPermohonan;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -38,30 +37,49 @@ class RisalahPertimbanganRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kadis']);
+        return auth()->user()->hasAnyRole(['admin', 'pemohon', 'staff', 'kabid', 'kadis']);
+    }
+
+    public function isReadOnly(): bool
+    {
+        return ! auth()->user()->hasAnyRole(['staff', 'admin']);
+    }
+
+    public static function getBadge(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): ?string
+    {
+        return $ownerRecord->risalahPertimbangan()->exists() ? '1' : null;
+    }
+
+    public static function getBadgeColor(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): ?string
+    {
+        return match ($ownerRecord->risalahPertimbangan?->status) {
+            'diterima' => 'success',
+            'menunggu_dokumen' => 'warning',
+            default => null,
+        };
+    }
+
+    public static function getBadgeTooltip(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): ?string
+    {
+        return match ($ownerRecord->risalahPertimbangan?->status) {
+            'diterima' => 'Risalah Pertimbangan: Diterima',
+            'menunggu_dokumen' => 'Risalah Pertimbangan: Menunggu dokumen eksternal',
+            default => null,
+        };
     }
 
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Penerimaan Risalah Pertimbangan Teknis')
-                ->description('Risalah ini merupakan dokumen resmi pertimbangan teknis pertanahan dari Kantor Pertanahan. Sistem hanya mencatat dan menyimpan dokumen yang telah diterima, bukan menyusun risalah BPN.')
+            Section::make('Penerimaan Dokumen Eksternal')
+                ->description('Risalah Pertimbangan Teknis diterbitkan oleh Kantor Pertanahan Kota Yogyakarta. Staff/Admin hanya mencatat metadata dokumen yang diterima dan menyimpan salinannya; aplikasi tidak menyusun atau menerbitkan Risalah.')
                 ->schema([
-                    TextInput::make('status')
-                        ->hidden()
-                        ->dehydrated(),
-
-                    TextInput::make('permohonan.nomor_permohonan')
-                        ->label('Nomor Permohonan')
-                        ->disabled()
-                        ->dehydrated(false),
-
                     TextInput::make('nomor_risalah')
                         ->label('Nomor Risalah')
                         ->required()
                         ->maxLength(100)
                         ->unique(table: 'risalah_pertimbangan', column: 'nomor_risalah', ignoreRecord: true)
-                        ->helperText('Masukkan nomor persis sebagaimana tercantum pada dokumen resmi BPN.'),
+                        ->helperText('Masukkan nomor persis sebagaimana tercantum pada dokumen resmi Kantor Pertanahan.'),
 
                     DatePicker::make('tanggal_risalah')
                         ->label('Tanggal Risalah')
@@ -69,74 +87,12 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         ->native(false)
                         ->maxDate(now()),
 
-                    Textarea::make('dasar_penerbitan')
-                        ->label('Dasar Penerbitan Risalah')
-                        ->rows(4)
-                        ->maxLength(10000)
-                        ->helperText('Ringkasan dasar penerbitan sebagaimana tercantum pada risalah, misalnya permohonan, ketentuan tata ruang, dan berita acara terkait.')
-                        ->columnSpanFull(),
-
-                    TextInput::make('nomor_ba_peninjauan')
-                        ->label('Nomor Berita Acara Peninjauan Lapangan')
-                        ->maxLength(100)
-                        ->placeholder('Jika tercantum pada risalah'),
-
-                    DatePicker::make('tanggal_ba_peninjauan')
-                        ->label('Tanggal Berita Acara Peninjauan Lapangan')
-                        ->native(false)
-                        ->maxDate(now()),
-
-                    TextInput::make('nomor_ba_pembahasan')
-                        ->label('Nomor Berita Acara Rapat Pembahasan')
-                        ->maxLength(100)
-                        ->placeholder('Jika tercantum pada risalah'),
-
-                    DatePicker::make('tanggal_ba_pembahasan')
-                        ->label('Tanggal Berita Acara Rapat Pembahasan')
-                        ->native(false)
-                        ->maxDate(now()),
-
                     Select::make('hasil')
                         ->label('Hasil Pertimbangan')
                         ->options(HasilRisalah::class)
                         ->native(false)
-                        ->required(),
-
-                    Textarea::make('pertimbangan_penguasaan_pemilikan')
-                        ->label('Pertimbangan Penguasaan, Pemilikan, Penggunaan & Pemanfaatan Tanah')
-                        ->rows(5)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-
-                    Textarea::make('ketentuan_syarat')
-                        ->label('Ketentuan dan Syarat')
-                        ->rows(5)
-                        ->maxLength(10000)
-                        ->columnSpanFull(),
-
-                    Textarea::make('indikasi_sengketa')
-                        ->label('Indikasi Sengketa, Konflik, atau Perkara Pertanahan')
-                        ->rows(4)
-                        ->maxLength(5000)
-                        ->columnSpanFull(),
-
-                    Textarea::make('pengakuan_hak')
-                        ->label('Pengakuan Hak Atas Tanah dan Hak Keperdataan Lainnya')
-                        ->rows(4)
-                        ->maxLength(5000)
-                        ->columnSpanFull(),
-
-                    Textarea::make('kemampuan_tanah')
-                        ->label('Kemampuan Tanah')
-                        ->rows(4)
-                        ->maxLength(5000)
-                        ->columnSpanFull(),
-
-                    Textarea::make('keterangan_lain')
-                        ->label('Keterangan Lain')
-                        ->rows(4)
-                        ->maxLength(5000)
-                        ->columnSpanFull(),
+                        ->required()
+                        ->helperText('Salin hasil pertimbangan sebagaimana tercantum pada Risalah resmi.'),
 
                     FileUpload::make('lokasi_file')
                         ->label('Dokumen Risalah Pertimbangan Teknis')
@@ -147,8 +103,8 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         ->maxSize(10240)
                         ->downloadable(false)
                         ->openable(false)
-                        ->required()
-                        ->helperText('Dokumen resmi BPN. PDF maksimal 10 MB.')
+                        ->required(fn (string $operation): bool => $operation === 'edit')
+                        ->helperText('PDF Risalah yang diterima dari Kantor Pertanahan. Maksimal 10 MB.')
                         ->columnSpanFull(),
 
                     FileUpload::make('lokasi_file_peta')
@@ -160,17 +116,17 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         ->maxSize(20480)
                         ->downloadable(false)
                         ->openable(false)
-                        ->helperText('Jika peta disimpan sebagai berkas terpisah. Maksimal 20 MB.')
+                        ->helperText('Isi hanya jika peta diterima sebagai berkas terpisah. Maksimal 20 MB.')
                         ->columnSpanFull(),
 
                     Textarea::make('catatan')
                         ->label('Catatan Penerimaan Internal')
                         ->rows(4)
                         ->maxLength(5000)
-                        ->helperText('Catatan administrasi penerimaan, bukan pengganti isi risalah resmi.')
+                        ->helperText('Catatan administrasi penerimaan, bukan pengganti substansi Risalah resmi.')
                         ->columnSpanFull(),
                 ])
-                ->columns(1),
+                ->columns(2),
         ]);
     }
 
@@ -198,7 +154,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
                         'diterima' => 'Diterima',
-                        'menunggu_dokumen' => 'Menunggu Dokumen',
+                        'menunggu_dokumen' => 'Menunggu Dokumen Eksternal',
                         default => (string) $state,
                     }),
 
@@ -224,7 +180,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
             ])
             ->headerActions([
                 Action::make('terima_risalah')
-                    ->label('Terima & Upload Risalah')
+                    ->label('Terima Risalah')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('primary')
                     ->visible(fn(): bool => auth()->user()->hasAnyRole(['staff', 'admin'])
@@ -248,10 +204,43 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     ])
                     ->modalHeading('Terima Risalah Pertimbangan Teknis')
                     ->modalDescription('Risalah diterbitkan oleh Kantor Pertanahan Kota Yogyakarta. Sistem mencatat dokumen yang diterima dan menjadikannya dasar untuk tahap keputusan IPPT.')
-                    ->modalSubmitActionLabel('Simpan Risalah')
+                    ->modalSubmitActionLabel('Terima & Simpan')
                     ->action(function (array $data): void {
-                        RisalahPertimbangan::create([
-                            'permohonan_id' => $this->getOwnerRecord()->id,
+                        $permohonan = $this->getOwnerRecord();
+
+                        if ($permohonan->status !== StatusPermohonan::MenungguRisalah) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Risalah belum masuk tahap penerimaan')
+                                ->body('Penerimaan Risalah hanya dapat dilakukan setelah Rekomendasi Teknis disetujui dan permohonan berada pada tahap Menunggu Risalah.')
+                                ->send();
+
+                            return;
+                        }
+
+                        // Satu permohonan hanya memiliki satu record intake Risalah.
+                        // Jika placeholder belum terbentuk karena data lama/recovery, buat otomatis di sini.
+                        $risalah = RisalahPertimbangan::firstOrCreate(
+                            ['permohonan_id' => $permohonan->id],
+                            [
+                                'status' => 'menunggu_dokumen',
+                                'diminta_oleh' => Auth::id(),
+                                'diminta_pada' => now(),
+                                'lokasi_file' => null,
+                            ],
+                        );
+
+                        if ($risalah->status !== 'menunggu_dokumen') {
+                            Notification::make()
+                                ->danger()
+                                ->title('Risalah sudah diproses')
+                                ->body('Dokumen Risalah pada permohonan ini sudah tidak berada pada tahap menunggu dokumen eksternal.')
+                                ->send();
+
+                            return;
+                        }
+
+                        $risalah->update([
                             'diterima_oleh' => Auth::id(),
                             'nomor_risalah' => $data['nomor_risalah'],
                             'tanggal_risalah' => $data['tanggal_risalah'],
@@ -304,26 +293,25 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         ->modalCancelActionLabel('Tutup')
                         ->infolist(fn(RisalahPertimbangan $record) => [
                             \Filament\Infolists\Components\TextEntry::make('nomor_risalah')->label('Nomor Risalah'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_risalah')->label('Tanggal')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
-                            \Filament\Infolists\Components\TextEntry::make('hasil')->label('Hasil')->badge()->placeholder('Belum dicatat'),
+                            \Filament\Infolists\Components\TextEntry::make('tanggal_risalah')->label('Tanggal')->date('d/m/Y')->placeholder('Belum dicatat'),
+                            \Filament\Infolists\Components\TextEntry::make('status')->label('Status')->badge()->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'diterima' => 'Diterima',
+                                'menunggu_dokumen' => 'Menunggu Dokumen Eksternal',
+                                default => (string) $state,
+                            }),
+                            \Filament\Infolists\Components\TextEntry::make('hasil')->label('Hasil Pertimbangan')->badge()->placeholder('Belum dicatat'),
                             \Filament\Infolists\Components\TextEntry::make('permohonan.nomor_permohonan')->label('Nomor Permohonan')->placeholder('Tidak tersedia'),
-                            \Filament\Infolists\Components\TextEntry::make('dasar_penerbitan')->label('Dasar Penerbitan')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_peninjauan')->label('Nomor BA Peninjauan')->placeholder('Tidak dicatat pada ringkasan sistem'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_peninjauan')->label('Tanggal BA Peninjauan')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
-                            \Filament\Infolists\Components\TextEntry::make('nomor_ba_pembahasan')->label('Nomor BA Pembahasan')->placeholder('Tidak dicatat pada ringkasan sistem'),
-                            \Filament\Infolists\Components\TextEntry::make('tanggal_ba_pembahasan')->label('Tanggal BA')->date('d/m/Y')->placeholder('Tidak dicatat pada ringkasan sistem'),
-                            \Filament\Infolists\Components\TextEntry::make('pertimbangan_penguasaan_pemilikan')->label('Pertimbangan Tanah')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('ketentuan_syarat')->label('Ketentuan & Syarat')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('indikasi_sengketa')->label('Indikasi Sengketa/Konflik/Perkara')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('pengakuan_hak')->label('Pengakuan Hak')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('kemampuan_tanah')->label('Kemampuan Tanah')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('keterangan_lain')->label('Keterangan Lain')->prose()->columnSpanFull(),
-                            \Filament\Infolists\Components\TextEntry::make('catatan')->label('Catatan Internal')->prose()->columnSpanFull(),
+                            \Filament\Infolists\Components\TextEntry::make('diterimaOleh.name')->label('Diterima Oleh')->placeholder('Belum diterima'),
+                            \Filament\Infolists\Components\TextEntry::make('diterima_pada')->label('Diterima Pada')->dateTime('d/m/Y H:i')->placeholder('Belum diterima'),
+                            \Filament\Infolists\Components\TextEntry::make('diminta_pada')->label('Menunggu Sejak')->dateTime('d/m/Y H:i')->placeholder('Tidak tersedia'),
+                            \Filament\Infolists\Components\TextEntry::make('catatan')->label('Catatan Penerimaan Internal')->prose()->columnSpanFull(),
+                            \Filament\Infolists\Components\TextEntry::make('lokasi_file')->label('Dokumen')->placeholder('Belum diunggah'),
+                            \Filament\Infolists\Components\TextEntry::make('lokasi_file_peta')->label('Lampiran Peta')->placeholder('Tidak ada'),
                         ])
-                        ->modalWidth('5xl'),
+                        ->modalWidth('4xl'),
                     EditAction::make()
                         ->label('Koreksi Data')
-                        ->visible(fn(): bool => auth()->user()->hasAnyRole(['staff', 'admin'])),
+                        ->visible(fn(RisalahPertimbangan $record): bool => $record->status === 'diterima' && auth()->user()->hasAnyRole(['staff', 'admin'])),
                     DeleteAction::make()
                         ->visible(fn(): bool => auth()->user()->hasRole('admin'))
                         ->before(function (RisalahPertimbangan $record): void {
@@ -339,8 +327,8 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     ->icon('heroicon-m-ellipsis-vertical')
                     ->color('gray'),
             ])
-            ->emptyStateHeading('Risalah Pertimbangan Belum Diterima')
-            ->emptyStateDescription('Setelah rekomendasi teknis disetujui, sistem menunggu Risalah Pertimbangan Teknis dari Kantor Pertanahan. Risalah ini menjadi salah satu dasar sebelum keputusan IPPT ditetapkan.')
+            ->emptyStateHeading('Menunggu Risalah dari Kantor Pertanahan')
+            ->emptyStateDescription('Rekomendasi Teknis telah disetujui. Sistem membuat antrean penerimaan secara otomatis. Staff tidak membuat Risalah; Staff hanya menerima dokumen resmi dari Kantor Pertanahan dan mengunggah salinannya.')
             ->emptyStateIcon('heroicon-o-scale')
             ->defaultSort('tanggal_risalah', 'desc');
     }
