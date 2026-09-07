@@ -77,12 +77,14 @@ class PemohonsTable
                         'terverifikasi' => 'Terverifikasi',
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
                         'perlu_perbaikan' => 'Perlu Perbaikan',
-                        'perlu_perubahan' => 'Menunggu Perubahan Data',
+                        'menunggu_perubahan' => 'Menunggu Izin Perubahan',
+                        'perlu_perubahan' => 'Perubahan Data Diizinkan',
                         default => ucfirst(str_replace('_', ' ', $state)),
                     })
                     ->color(fn (string $state): string => match ($state) {
                         'terverifikasi' => 'success',
-                        'perlu_perbaikan' => 'warning',
+                        'perlu_perbaikan' => 'danger',
+                        'menunggu_perubahan' => 'warning',
                         'perlu_perubahan' => 'warning',
                         default => 'gray',
                     })

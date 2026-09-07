@@ -13,7 +13,7 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
-                'name' => 'Administrator',
+                'name' => 'Administrator IPPT',
                 'email' => 'admin@ippt.test',
                 'role' => UserRole::ADMIN,
             ],

@@ -63,7 +63,7 @@ class Pemohon extends Model
 
     public function isEditableByPemohon(): bool
     {
-        return in_array($this->status_verifikasi, ['perlu_perbaikan', 'perlu_perubahan'], true);
+        return blank($this->status_verifikasi) || in_array($this->status_verifikasi, ['perlu_perbaikan', 'perlu_perubahan'], true);
     }
 
     public function verificationHistories(): HasMany

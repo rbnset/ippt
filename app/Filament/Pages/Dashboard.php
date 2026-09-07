@@ -103,7 +103,7 @@ class Dashboard extends BaseDashboard
         app(PemohonVerificationService::class)->requestChange($record, $reason);
         $this->alasanPerubahan = '';
         $this->data = $this->recordToData($record->fresh());
-        Notification::make()->success()->title('Permintaan perubahan dicatat')->body('Form data pemohon sekarang terbuka. Setelah dikirim, data akan diverifikasi ulang.')->send();
+        Notification::make()->success()->title('Permintaan perubahan dikirim')->body('Permintaan Anda sedang menunggu izin Admin/Staff. Formulir belum dibuka.')->send();
     }
 
     public function getPemohonRecord(): ?Pemohon
@@ -162,7 +162,8 @@ class Dashboard extends BaseDashboard
             ->all();
 
         $pendingPemohon = Pemohon::query()->where('status_verifikasi', 'menunggu_verifikasi')->count();
-        $perbaikanPemohon = Pemohon::query()->whereIn('status_verifikasi', ['perlu_perbaikan', 'perlu_perubahan'])->count();
+        $perbaikanPemohon = Pemohon::query()->where('status_verifikasi', 'perlu_perbaikan')->count();
+        $perubahanPemohon = Pemohon::query()->where('status_verifikasi', 'menunggu_perubahan')->count();
         $pendingDocuments = DokumenPermohonan::query()
             ->where('status', StatusDokumen::Menunggu->value)
             ->whereHas('permohonan', fn ($query) => $query->whereIn('id', (clone $permohonan)->select('id')))
@@ -207,6 +208,7 @@ class Dashboard extends BaseDashboard
                 'stats' => [
                     ['label' => 'Pemohon Terdaftar', 'value' => Pemohon::query()->count(), 'description' => 'Seluruh data pemohon', 'icon' => 'heroicon-o-users'],
                     ['label' => 'Verifikasi Pemohon', 'value' => $pendingPemohon, 'description' => 'Perlu ditinjau petugas', 'icon' => 'heroicon-o-check-badge'],
+                    ['label' => 'Izin Perubahan', 'value' => $perubahanPemohon, 'description' => 'Menunggu izin petugas', 'icon' => 'heroicon-o-pencil-square'],
                     ['label' => 'Dokumen Menunggu', 'value' => $pendingDocuments, 'description' => 'Perlu verifikasi', 'icon' => 'heroicon-o-document-check'],
                     ['label' => 'BAP Draf', 'value' => $bapDraft, 'description' => 'Belum difinalkan', 'icon' => 'heroicon-o-clipboard-document-check'],
                     ['label' => 'Rekomendasi Review', 'value' => $recommendationReview, 'description' => 'Menunggu persetujuan Kabid', 'icon' => 'heroicon-o-document-text'],
@@ -214,6 +216,7 @@ class Dashboard extends BaseDashboard
                 ],
                 'tasks' => [
                     ['title' => 'Verifikasi pemohon', 'count' => $pendingPemohon, 'description' => 'Periksa data yang baru diajukan.', 'icon' => 'heroicon-o-check-badge', 'url' => PemohonResource::getUrl('index')],
+                    ['title' => 'Izin perubahan data', 'count' => $perubahanPemohon, 'description' => 'Tinjau permintaan perubahan dari pemohon.', 'icon' => 'heroicon-o-pencil-square', 'url' => PemohonResource::getUrl('index')],
                     ['title' => 'Verifikasi dokumen', 'count' => $pendingDocuments, 'description' => 'Pastikan dokumen persyaratan diproses.', 'icon' => 'heroicon-o-document-check', 'url' => PermohonanResource::getUrl('index')],
                     ['title' => 'Monitor pengesahan', 'count' => $decisionReview, 'description' => 'Keputusan yang sedang menunggu Kadis.', 'icon' => 'heroicon-o-check-circle', 'url' => PermohonanResource::getUrl('index')],
                 ],
@@ -224,6 +227,7 @@ class Dashboard extends BaseDashboard
                 'description' => 'Prioritaskan verifikasi pemohon, dokumen, penerimaan Risalah, dan penyusunan keputusan sesuai tahap permohonan.',
                 'stats' => [
                     ['label' => 'Verifikasi Pemohon', 'value' => $pendingPemohon, 'description' => 'Perlu diperiksa', 'icon' => 'heroicon-o-check-badge'],
+                    ['label' => 'Izin Perubahan', 'value' => $perubahanPemohon, 'description' => 'Menunggu izin petugas', 'icon' => 'heroicon-o-pencil-square'],
                     ['label' => 'Dokumen Menunggu', 'value' => $pendingDocuments, 'description' => 'Perlu diverifikasi', 'icon' => 'heroicon-o-document-check'],
                     ['label' => 'Menunggu Risalah', 'value' => $risalahPending, 'description' => 'Risalah perlu diterima', 'icon' => 'heroicon-o-document-text'],
                     ['label' => 'Draf Keputusan', 'value' => $decisionDraft, 'description' => 'Perlu disusun/diperbaiki', 'icon' => 'heroicon-o-pencil-square'],
@@ -232,6 +236,7 @@ class Dashboard extends BaseDashboard
                 ],
                 'tasks' => [
                     ['title' => 'Verifikasi data pemohon', 'count' => $pendingPemohon, 'description' => 'Setujui atau minta perbaikan data.', 'icon' => 'heroicon-o-check-badge', 'url' => PemohonResource::getUrl('index')],
+                    ['title' => 'Izin perubahan data', 'count' => $perubahanPemohon, 'description' => 'Tinjau permintaan perubahan dari pemohon.', 'icon' => 'heroicon-o-pencil-square', 'url' => PemohonResource::getUrl('index')],
                     ['title' => 'Periksa dokumen', 'count' => $pendingDocuments, 'description' => 'Terima atau tolak dengan arahan yang jelas.', 'icon' => 'heroicon-o-document-check', 'url' => PermohonanResource::getUrl('index')],
                     ['title' => 'Terima Risalah', 'count' => $risalahPending, 'description' => 'Catat dokumen resmi yang diterima dari Kantor Pertanahan.', 'icon' => 'heroicon-o-document-text', 'url' => PermohonanResource::getUrl('index')],
                     ['title' => 'Siapkan keputusan', 'count' => $decisionDraft, 'description' => 'Susun draf sebelum diajukan kepada Kadis.', 'icon' => 'heroicon-o-pencil-square', 'url' => PermohonanResource::getUrl('index')],

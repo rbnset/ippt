@@ -19,12 +19,46 @@ class EditPemohon extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('setujuiPermintaanPerubahan')
+                ->label('Izinkan Perubahan Data')
+                ->icon('heroicon-o-pencil-square')
+                ->color('success')
+                ->visible(fn (): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])
+                    && $this->record->status_verifikasi === 'menunggu_perubahan')
+                ->requiresConfirmation()
+                ->modalHeading('Izinkan Perubahan Data')
+                ->modalDescription('Pemohon akan menerima notifikasi dan baru dapat membuka formulir setelah permintaan ini diizinkan.')
+                ->modalSubmitActionLabel('Ya, Izinkan')
+                ->action(function (): void {
+                    app(PemohonVerificationService::class)->approveChangeRequest($this->record);
+                }),
+
+            Action::make('tolakPermintaanPerubahan')
+                ->label('Tolak Permintaan Perubahan')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])
+                    && $this->record->status_verifikasi === 'menunggu_perubahan')
+                ->form([
+                    Textarea::make('alasan')
+                        ->label('Alasan Penolakan')
+                        ->required()
+                        ->rows(6)
+                        ->maxLength(2000)
+                        ->placeholder('Jelaskan mengapa perubahan data belum dapat diizinkan.'),
+                ])
+                ->modalHeading('Tolak Permintaan Perubahan')
+                ->modalSubmitActionLabel('Tolak Permintaan')
+                ->action(function (array $data): void {
+                    app(PemohonVerificationService::class)->rejectChangeRequest($this->record, $data['alasan']);
+                }),
+
             Action::make('setujuiVerifikasi')
                 ->label('Setujui & Verifikasi')
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
                 ->visible(fn (): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])
-                    && $this->record->status_verifikasi !== 'terverifikasi')
+                    && $this->record->status_verifikasi === 'menunggu_verifikasi')
                 ->requiresConfirmation()
                 ->modalHeading('Verifikasi Data Pemohon')
                 ->modalDescription('Pastikan identitas, kontak, dan alamat telah diperiksa terhadap dokumen pendukung sebelum menyetujui.')
@@ -38,7 +72,7 @@ class EditPemohon extends EditRecord
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
                 ->visible(fn (): bool => auth()->user()?->hasAnyRole([UserRole::ADMIN, UserRole::STAFF])
-                    && $this->record->status_verifikasi !== 'terverifikasi')
+                    && $this->record->status_verifikasi === 'menunggu_verifikasi')
                 ->form([
                     Textarea::make('alasan')
                         ->label('Alasan Perbaikan')
@@ -54,5 +88,6 @@ class EditPemohon extends EditRecord
                 }),
         ];
     }
+
 
 }

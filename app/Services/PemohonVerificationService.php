@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Pemohons\PemohonResource;
 use App\Models\Pemohon;
 use App\Models\PemohonVerificationHistory;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,11 @@ use Illuminate\Validation\Rule;
 
 class PemohonVerificationService
 {
+    public function __construct(
+        private readonly FilamentDatabaseNotificationService $databaseNotifications,
+    ) {
+    }
+
     /** @var array<int, string> */
     private const SNAPSHOT_FIELDS = [
         'jenis_pemohon', 'nama', 'nik', 'nib', 'npwp', 'nomor_telepon',
@@ -37,10 +43,8 @@ class PemohonVerificationService
                 $pemohon->nomor_antrian = $this->nextQueueNumber();
             }
 
-            if (! $isNew && $oldStatus === 'terverifikasi') {
-                $versiData++;
-            }
-
+            // Versi data berubah saat perubahan yang diajukan benar-benar
+            // disetujui petugas, bukan saat pemohon baru mengirim ulang.
             $pemohon->versi_data = $versiData;
             $pemohon->fill($validated);
             $pemohon->email = $user->email;
@@ -76,33 +80,111 @@ class PemohonVerificationService
 
         $oldStatus = $pemohon->status_verifikasi;
         $pemohon->update([
-            'status_verifikasi' => 'perlu_perubahan',
+            'status_verifikasi' => 'menunggu_perubahan',
             'alasan_perubahan' => $reason,
             'diverifikasi_oleh' => null,
             'diverifikasi_pada' => null,
             'diajukan_pada' => now(),
         ]);
 
-        $this->history($pemohon, 'permintaan_perubahan', $oldStatus, 'perlu_perubahan', $reason);
+        $this->history($pemohon, 'permintaan_perubahan', $oldStatus, 'menunggu_perubahan', $reason);
 
-        $this->notifyReviewers($pemohon, 'Permintaan perubahan data pemohon', "{$pemohon->nama} mengajukan perubahan data. Alasan: {$reason}", 'warning');
+        $this->notifyReviewers(
+            $pemohon,
+            'Permintaan perubahan data pemohon',
+            "{$pemohon->nama} meminta izin perubahan data. Alasan: {$reason}",
+            'warning',
+        );
+    }
+
+    public function approveChangeRequest(Pemohon $pemohon): void
+    {
+        $this->assertReviewer();
+        abort_unless($pemohon->status_verifikasi === 'menunggu_perubahan', 422, 'Permintaan perubahan tidak sedang menunggu persetujuan.');
+
+        $oldStatus = $pemohon->status_verifikasi;
+        $reason = $pemohon->alasan_perubahan;
+
+        $pemohon->update([
+            'status_verifikasi' => 'perlu_perubahan',
+            'diverifikasi_oleh' => auth()->id(),
+            'diverifikasi_pada' => now(),
+        ]);
+
+        $this->history($pemohon, 'perubahan_diizinkan', $oldStatus, 'perlu_perubahan', $reason);
+        $this->notifyPemohon(
+            $pemohon,
+            'Perubahan data diizinkan',
+            'Permintaan perubahan data Anda telah disetujui petugas. Silakan buka dasbor, perbarui data, lalu kirim kembali untuk diverifikasi.',
+            'success',
+        );
+        Notification::make()->success()->title('Perubahan data diizinkan')->body("{$pemohon->nama} sekarang dapat memperbarui datanya.")->send();
+    }
+
+    public function rejectChangeRequest(Pemohon $pemohon, string $reason): void
+    {
+        $this->assertReviewer();
+        abort_unless($pemohon->status_verifikasi === 'menunggu_perubahan', 422, 'Permintaan perubahan tidak sedang menunggu persetujuan.');
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new \InvalidArgumentException('Alasan penolakan wajib diisi.');
+        }
+
+        $oldStatus = $pemohon->status_verifikasi;
+        $pemohon->update([
+            'status_verifikasi' => 'terverifikasi',
+            'alasan_perubahan' => $reason,
+            'diverifikasi_oleh' => auth()->id(),
+            'diverifikasi_pada' => now(),
+        ]);
+
+        $this->history($pemohon, 'permintaan_perubahan_ditolak', $oldStatus, 'terverifikasi', $reason);
+        $this->notifyPemohon(
+            $pemohon,
+            'Permintaan perubahan ditolak',
+            "Petugas belum mengizinkan perubahan data. Alasan: {$reason}",
+            'warning',
+        );
+        Notification::make()->warning()->title('Permintaan perubahan ditolak')->body('Data pemohon tetap terverifikasi.')->send();
     }
 
     public function approve(Pemohon $pemohon): void
     {
         $this->assertReviewer();
+        abort_unless($pemohon->status_verifikasi === 'menunggu_verifikasi', 422, 'Data pemohon tidak sedang menunggu verifikasi.');
+
         $oldStatus = $pemohon->status_verifikasi;
+        $hasPreviousApproval = $pemohon->verificationHistories()
+            ->where('status_sesudahnya', 'terverifikasi')
+            ->exists();
+        $nextVersion = max(1, (int) ($pemohon->versi_data ?? 1));
+
+        // Hanya perubahan yang benar-benar disetujui yang menaikkan versi.
+        // Verifikasi pertama tetap versi 1; setelah ada versi terverifikasi,
+        // pengajuan perubahan berikutnya menjadi versi 2, 3, dan seterusnya.
+        if ($hasPreviousApproval) {
+            $nextVersion++;
+        }
 
         $pemohon->update([
             'status_verifikasi' => 'terverifikasi',
+            'versi_data' => $nextVersion,
             'diverifikasi_oleh' => auth()->id(),
             'diverifikasi_pada' => now(),
         ]);
 
         $this->history($pemohon, 'disetujui', $oldStatus, 'terverifikasi', null);
 
-        $this->notifyPemohon($pemohon, 'Data pemohon terverifikasi', 'Data pemohon Anda telah diverifikasi. Anda sekarang dapat mengajukan permohonan IPPT.', 'success');
-        Notification::make()->success()->title('Data pemohon terverifikasi')->body("{$pemohon->nama} dapat mengajukan IPPT.")->send();
+        $this->notifyPemohon(
+            $pemohon,
+            $hasPreviousApproval ? 'Perubahan data disetujui' : 'Data pemohon terverifikasi',
+            $hasPreviousApproval
+                ? "Perubahan data Anda telah disetujui. Data sekarang tercatat sebagai versi {$nextVersion}."
+                : 'Data pemohon Anda telah diverifikasi. Anda sekarang dapat mengajukan permohonan IPPT.',
+            'success',
+        );
+        Notification::make()->success()->title($hasPreviousApproval ? 'Perubahan data disetujui' : 'Data pemohon terverifikasi')->body("{$pemohon->nama} — versi {$nextVersion}.")->send();
     }
 
     public function reject(Pemohon $pemohon, string $reason): void
@@ -112,6 +194,8 @@ class PemohonVerificationService
         if ($reason === '') {
             throw new \InvalidArgumentException('Alasan perbaikan wajib diisi.');
         }
+
+        abort_unless($pemohon->status_verifikasi === 'menunggu_verifikasi', 422, 'Data pemohon tidak sedang menunggu verifikasi.');
 
         $oldStatus = $pemohon->status_verifikasi;
         $pemohon->update([
@@ -189,11 +273,19 @@ class PemohonVerificationService
     {
         $body ??= "{$pemohon->nama} mengirim data pemohon dan membutuhkan pemeriksaan.";
         $url = PemohonResource::getUrl('edit', ['record' => $pemohon]);
-        $users = \App\Models\User::query()->whereIn('role', [UserRole::ADMIN->value, UserRole::STAFF->value])->get();
+        $reviewerRoles = [UserRole::ADMIN, UserRole::STAFF];
+        $reviewerRoleValues = array_map(
+            static fn (UserRole $role): string => $role->value,
+            $reviewerRoles,
+        );
+
+        $users = \App\Models\User::query()
+            ->whereIn('role', $reviewerRoleValues)
+            ->get();
 
         foreach ($users as $user) {
             $notification = Notification::make()->title($title)->body($body)->actions([
-                Action::make('review')->label('Tinjau Data Pemohon')->url($url),
+                Action::make('review')->label('Tinjau Data Pemohon')->url($url)->markAsRead(),
             ]);
             match ($level) {
                 'success' => $notification->success(),
@@ -201,7 +293,7 @@ class PemohonVerificationService
                 'danger' => $notification->danger(),
                 default => $notification->info(),
             };
-            $notification->sendToDatabase($user, isEventDispatched: true);
+            $this->databaseNotifications->send($user, $notification);
         }
     }
 
@@ -218,6 +310,6 @@ class PemohonVerificationService
             'danger' => $notification->danger(),
             default => $notification->info(),
         };
-        $notification->sendToDatabase($user, isEventDispatched: true);
+        $this->databaseNotifications->send($user, $notification);
     }
 }

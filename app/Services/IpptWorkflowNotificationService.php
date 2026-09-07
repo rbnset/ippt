@@ -11,6 +11,11 @@ use Illuminate\Support\Collection;
 
 class IpptWorkflowNotificationService
 {
+    public function __construct(
+        private readonly FilamentDatabaseNotificationService $databaseNotifications,
+    ) {
+    }
+
     public function pemohon(Permohonan $permohonan, string $title, string $body, string $level = 'info'): void
     {
         $user = $permohonan->loadMissing('pemohon.user')->pemohon?->user;
@@ -36,6 +41,6 @@ class IpptWorkflowNotificationService
             'danger' => $notification->danger(),
             default => $notification->info(),
         };
-        $notification->sendToDatabase($user, isEventDispatched: true);
+        $this->databaseNotifications->send($user, $notification);
     }
 }
