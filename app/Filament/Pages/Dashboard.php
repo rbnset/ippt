@@ -133,32 +133,43 @@ class Dashboard extends BaseDashboard
 
         return Permohonan::query()
             ->where('pemohon_id', $pemohon->id)
-            ->with(['pemeriksaanLapangan' => fn ($query) => $query->orderByDesc('versi'), 'rekomendasiTeknis'])
+            ->with([
+                'pemeriksaanLapangan' => fn ($query) => $query->orderByDesc('versi'),
+                'rekomendasiTeknis',
+                'keputusanIppt' => fn ($query) => $query->orderByDesc('versi'),
+            ])
             ->latest('created_at')->limit(3)->get()
             ->map(function (Permohonan $permohonan): array {
                 $bap = $permohonan->pemeriksaanLapangan->first();
+                $rekomendasi = $permohonan->rekomendasiTeknis;
+                $keputusan = $permohonan->keputusanIppt->first();
                 $status = $permohonan->status instanceof StatusPermohonan ? $permohonan->status : StatusPermohonan::tryFrom((string) $permohonan->status);
+
                 $progress = match ($status) {
-                    StatusPermohonan::Diajukan, StatusPermohonan::Verifikasi => ['label' => 'Verifikasi administrasi', 'detail' => 'Permohonan sedang diperiksa petugas.', 'step' => 2],
-                    StatusPermohonan::Dikembalikan => ['label' => 'Perlu perbaikan', 'detail' => 'Periksa notifikasi dan lengkapi dokumen yang diminta.', 'step' => 2],
+                    StatusPermohonan::Diajukan, StatusPermohonan::Verifikasi => ['label' => 'Verifikasi administrasi', 'detail' => 'Petugas sedang memeriksa kelengkapan dan kesesuaian permohonan.', 'step' => 2, 'action' => 'Menunggu pemeriksaan petugas'],
+                    StatusPermohonan::Dikembalikan => ['label' => 'Perlu perbaikan', 'detail' => 'Ada bagian permohonan yang perlu Anda perbaiki. Periksa notifikasi untuk petunjuknya.', 'step' => 2, 'action' => 'Periksa notifikasi'],
                     StatusPermohonan::ProsesTeknis => $bap?->isFinal()
-                        ? ($permohonan->rekomendasiTeknis?->status === StatusPersetujuan::Ditolak
-                            ? ['label' => 'Rekomendasi perlu diperbaiki', 'detail' => 'Tim teknis perlu memperbaiki rekomendasi berdasarkan catatan review.', 'step' => 5]
-                            : ($permohonan->rekomendasiTeknis
-                                ? ['label' => 'Rekomendasi teknis', 'detail' => 'Tim teknis sedang menyusun atau memperbaiki rekomendasi.', 'step' => 5]
-                                : ['label' => 'BAP selesai', 'detail' => 'Pemeriksaan lapangan telah selesai dan proses teknis berlanjut ke rekomendasi.', 'step' => 4]))
-                        : ($bap ? ['label' => 'Pemeriksaan lapangan', 'detail' => 'Tim teknis sedang menyusun BAP pemeriksaan lapangan.', 'step' => 3] : ['label' => 'Menunggu pemeriksaan teknis', 'detail' => 'Permohonan sudah masuk tahap teknis.', 'step' => 3]),
-                    StatusPermohonan::Rekomendasi => ['label' => 'Rekomendasi teknis', 'detail' => 'Hasil pemeriksaan menjadi dasar penyusunan rekomendasi teknis.', 'step' => 5],
-                    StatusPermohonan::MenungguRisalah => ['label' => 'Risalah pertimbangan', 'detail' => 'Menunggu proses dokumen resmi pertimbangan teknis.', 'step' => 6],
-                    StatusPermohonan::Keputusan => ['label' => 'Keputusan IPPT', 'detail' => 'Permohonan berada pada tahap penyusunan/pengesahan keputusan.', 'step' => 7],
-                    StatusPermohonan::Diterbitkan => ['label' => 'Selesai', 'detail' => 'Keputusan IPPT telah diterbitkan.', 'step' => 8],
-                    StatusPermohonan::Ditolak => ['label' => 'Permohonan ditolak', 'detail' => 'Lihat detail permohonan dan notifikasi untuk informasi lebih lanjut.', 'step' => 0],
-                    default => ['label' => 'Dalam proses', 'detail' => 'Permohonan sedang diproses.', 'step' => 1],
+                        ? ($rekomendasi?->status === StatusPersetujuan::Ditolak
+                            ? ['label' => 'Rekomendasi perlu diperbaiki', 'detail' => 'Rekomendasi teknis dikembalikan oleh Kabid dan sedang diperbaiki tim teknis.', 'step' => 5, 'action' => 'Menunggu perbaikan teknis']
+                            : ($rekomendasi
+                                ? ['label' => 'Rekomendasi teknis', 'detail' => 'Tim teknis sedang menyusun atau memperbaiki rekomendasi berdasarkan pemeriksaan lapangan.', 'step' => 5, 'action' => 'Menunggu proses teknis']
+                                : ['label' => 'Pemeriksaan selesai', 'detail' => 'Pemeriksaan lapangan telah selesai dan permohonan masuk ke penyusunan rekomendasi teknis.', 'step' => 4, 'action' => 'Menunggu rekomendasi']))
+                        : ($bap ? ['label' => 'Pemeriksaan lapangan', 'detail' => 'Tim teknis sedang melaksanakan atau melengkapi pemeriksaan lapangan.', 'step' => 3, 'action' => 'Menunggu pemeriksaan teknis'] : ['label' => 'Menunggu pemeriksaan teknis', 'detail' => 'Permohonan sudah masuk tahap teknis dan menunggu pemeriksaan lapangan.', 'step' => 3, 'action' => 'Menunggu pemeriksaan teknis']),
+                    StatusPermohonan::Rekomendasi => ['label' => 'Review rekomendasi teknis', 'detail' => 'Rekomendasi teknis sedang menunggu atau menjalani review Kepala Bidang.', 'step' => 5, 'action' => 'Menunggu review'],
+                    StatusPermohonan::MenungguRisalah => ['label' => 'Risalah pertimbangan', 'detail' => 'Permohonan menunggu dokumen Risalah Pertimbangan Teknis dari proses eksternal.', 'step' => 6, 'action' => 'Menunggu Risalah'],
+                    StatusPermohonan::Keputusan => $keputusan?->status === StatusPersetujuan::Diajukan
+                        ? ['label' => 'Menunggu penetapan', 'detail' => 'Keputusan sudah diajukan dan sedang menunggu penetapan Kepala Dinas.', 'step' => 7, 'action' => 'Menunggu penetapan']
+                        : ['label' => 'Penyusunan keputusan', 'detail' => 'Keputusan IPPT sedang disusun atau diperbaiki sebelum diajukan untuk penetapan.', 'step' => 7, 'action' => 'Menunggu penyelesaian keputusan'],
+                    StatusPermohonan::Diterbitkan => ['label' => 'Selesai', 'detail' => 'Keputusan IPPT telah ditetapkan dan diterbitkan.', 'step' => 8, 'action' => 'Dokumen tersedia'],
+                    StatusPermohonan::Ditolak => ['label' => 'Permohonan ditolak', 'detail' => 'Keputusan akhir menolak permohonan. Buka detail untuk melihat informasi keputusan.', 'step' => 0, 'action' => 'Lihat keputusan'],
+                    default => ['label' => 'Dalam proses', 'detail' => 'Permohonan sedang diproses.', 'step' => 1, 'action' => 'Menunggu proses'],
                 };
+
                 return [
-                    'id' => $permohonan->id, 'nomor' => $permohonan->nomor_permohonan,
+                    'id' => $permohonan->id,
+                    'nomor' => $permohonan->nomor_permohonan,
+                    'tanggal' => $permohonan->created_at?->format('d M Y'),
                     'status' => $status?->getLabel() ?? (string) $permohonan->status,
-                    'bap' => $bap ? ($bap->isFinal() ? 'BAP final' : 'BAP draf') : null,
                     ...$progress,
                 ];
             })->all();

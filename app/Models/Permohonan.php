@@ -127,9 +127,9 @@ class Permohonan extends Model
     /**
      * Keputusan IPPT.
      */
-    public function keputusanIppt(): HasOne
+    public function keputusanIppt(): HasMany
     {
-        return $this->hasOne(KeputusanIppt::class);
+        return $this->hasMany(KeputusanIppt::class, 'permohonan_id');
     }
 
     /**

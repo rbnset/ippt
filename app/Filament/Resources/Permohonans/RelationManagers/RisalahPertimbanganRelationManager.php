@@ -97,7 +97,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     FileUpload::make('lokasi_file')
                         ->label('Dokumen Risalah Pertimbangan Teknis')
                         ->disk('private')
-                        ->directory('risalah-pertimbangan')
+                        ->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'risalah-pertimbangan'))
                         ->visibility('private')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(10240)
@@ -110,7 +110,7 @@ class RisalahPertimbanganRelationManager extends RelationManager
                     FileUpload::make('lokasi_file_peta')
                         ->label('Lampiran Peta Risalah (opsional)')
                         ->disk('private')
-                        ->directory('risalah-pertimbangan/peta')
+                        ->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'risalah-pertimbangan/peta'))
                         ->visibility('private')
                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                         ->maxSize(20480)
@@ -192,12 +192,12 @@ class RisalahPertimbanganRelationManager extends RelationManager
                         Textarea::make('catatan')->label('Catatan Penerimaan')->rows(4)->maxLength(5000)->columnSpanFull(),
                         FileUpload::make('lokasi_file')
                             ->label('Dokumen Risalah Pertimbangan Teknis')
-                            ->disk('private')->directory('risalah-pertimbangan')->visibility('private')
+                            ->disk('private')->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'risalah-pertimbangan'))->visibility('private')
                             ->acceptedFileTypes(['application/pdf'])->maxSize(10240)->required()
                             ->downloadable(false)->openable(false)->columnSpanFull(),
                         FileUpload::make('lokasi_file_peta')
                             ->label('Lampiran Peta Risalah (opsional)')
-                            ->disk('private')->directory('risalah-pertimbangan/peta')->visibility('private')
+                            ->disk('private')->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'risalah-pertimbangan/peta'))->visibility('private')
                             ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])->maxSize(20480)
                             ->downloadable(false)->openable(false)->columnSpanFull(),
                         Select::make('hasil')->label('Hasil Pertimbangan')->options(HasilRisalah::class)->native(false)->required(),
@@ -240,13 +240,30 @@ class RisalahPertimbanganRelationManager extends RelationManager
                             return;
                         }
 
+                        $disk = Storage::disk('private');
+                        $pathService = app(\App\Services\PermohonanStoragePathService::class);
+                        $pdfSource = $data['lokasi_file'];
+                        $pdfTarget = $pathService->path($permohonan, 'risalah-pertimbangan', 'risalah-pertimbangan', $data['nomor_risalah']);
+                        if ($pdfSource !== $pdfTarget && $disk->exists($pdfSource)) {
+                            $disk->move($pdfSource, $pdfTarget);
+                        }
+
+                        $mapSource = $data['lokasi_file_peta'] ?? null;
+                        $mapTarget = null;
+                        if ($mapSource && $disk->exists($mapSource)) {
+                            $mapTarget = $pathService->path($permohonan, 'risalah-pertimbangan/peta', 'peta-risalah', $data['nomor_risalah'], pathinfo($mapSource, PATHINFO_EXTENSION));
+                            if ($mapSource !== $mapTarget) {
+                                $disk->move($mapSource, $mapTarget);
+                            }
+                        }
+
                         $risalah->update([
                             'diterima_oleh' => Auth::id(),
                             'nomor_risalah' => $data['nomor_risalah'],
                             'tanggal_risalah' => $data['tanggal_risalah'],
                             'hasil' => $data['hasil'],
-                            'lokasi_file' => $data['lokasi_file'],
-                            'lokasi_file_peta' => $data['lokasi_file_peta'] ?? null,
+                            'lokasi_file' => $pdfTarget,
+                            'lokasi_file_peta' => $mapTarget,
                             'catatan' => $data['catatan'] ?? null,
                             'status' => 'diterima',
                             'diterima_pada' => now(),

@@ -156,7 +156,7 @@ class RekomendasiTeknisRelationManager extends RelationManager
                     FileUpload::make('lokasi_file')
                         ->label('Lampiran Pendukung')
                         ->disk('private')
-                        ->directory('rekomendasi-teknis/lampiran')
+                        ->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'rekomendasi-teknis/lampiran'))
                         ->visibility('private')
                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                         ->maxSize(10240)

@@ -187,7 +187,7 @@ class DokumenPermohonansRelationManager extends RelationManager
 
 Alasan / arahan: ' . ($record->catatan ?: 'Pastikan dokumen lengkap, jelas, dan sesuai persyaratan.'))
                         ->form([
-                            FileUpload::make('lokasi_file')->label('File Pengganti')->disk('private')->directory('dokumen-ippt-upload')->visibility('private')
+                            FileUpload::make('lokasi_file')->label('File Pengganti')->disk('private')->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'dokumen-persyaratan/tmp'))->visibility('private')
                                 ->acceptedFileTypes(['application/pdf','image/jpeg','image/png'])->maxSize(10240)->downloadable(false)->openable(false)->required()
                                 ->helperText('PDF/JPG/PNG, maksimal 10 MB.'),
                             Textarea::make('catatan')->label('Catatan Perbaikan')->rows(3)->maxLength(1000)->helperText('Opsional. Jelaskan perbaikan yang Anda lakukan.'),

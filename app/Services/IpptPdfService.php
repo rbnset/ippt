@@ -15,6 +15,8 @@ class IpptPdfService
             'permohonan.pemohon',
             'disusunOleh',
             'disetujuiOleh',
+            'permohonan.rekomendasiTeknis',
+            'permohonan.risalahPertimbangan',
         ]);
 
         return Pdf::loadView(
@@ -23,6 +25,8 @@ class IpptPdfService
                 'keputusan' => $keputusan,
                 'permohonan' => $keputusan->permohonan,
                 'pemohon' => $keputusan->permohonan->pemohon,
+                'rekomendasi' => $keputusan->permohonan->rekomendasiTeknis,
+                'risalah' => $keputusan->permohonan->risalahPertimbangan,
             ]
         )
             ->setPaper('a4')
@@ -33,12 +37,17 @@ class IpptPdfService
     }
     public function store(KeputusanIppt $keputusan): string
     {
-        $filename = sprintf(
-            '%s_keputusan-ippt.pdf',
-            strtolower(str_replace(['/', '\\'], '-', $keputusan->nomor_keputusan ?: 'keputusan-ippt-' . $keputusan->id))
-        );
+        $permohonan = $keputusan->loadMissing('permohonan.pemohon')->permohonan;
+        if (! $permohonan) {
+            throw new \RuntimeException('Permohonan untuk keputusan IPPT tidak ditemukan.');
+        }
 
-        $path = 'keputusan-ippt/generated/' . $filename;
+        $path = app(\App\Services\PermohonanStoragePathService::class)->path(
+            $permohonan,
+            'keputusan-ippt',
+            'keputusan',
+            $keputusan->nomor_keputusan ?: 'keputusan-ippt-' . $keputusan->id,
+        );
 
         Storage::disk('private')->put($path, $this->generate($keputusan)->output());
 

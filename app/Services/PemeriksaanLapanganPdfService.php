@@ -28,12 +28,17 @@ class PemeriksaanLapanganPdfService
 
     public function store(PemeriksaanLapangan $pemeriksaan): string
     {
-        $filename = sprintf(
-            '%s_bap-pemeriksaan-lapangan-v%s.pdf',
-            strtolower(str_replace(['/', '\\'], '-', $pemeriksaan->nomor_bap)),
-            $pemeriksaan->versi ?: 1,
+        $permohonan = $pemeriksaan->loadMissing('permohonan.pemohon')->permohonan;
+        if (! $permohonan) {
+            throw new \RuntimeException('Permohonan untuk BAP tidak ditemukan.');
+        }
+
+        $path = app(\App\Services\PermohonanStoragePathService::class)->path(
+            $permohonan,
+            'pemeriksaan-lapangan',
+            'bap-v' . ($pemeriksaan->versi ?: 1),
+            $pemeriksaan->nomor_bap ?: 'bap-' . $pemeriksaan->id,
         );
-        $path = 'pemeriksaan-lapangan/bap/' . $filename;
         Storage::disk('private')->put($path, $this->generate($pemeriksaan)->output());
         return $path;
     }

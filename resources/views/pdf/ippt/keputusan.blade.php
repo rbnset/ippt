@@ -265,7 +265,29 @@
 
     <br>
 
-    {{-- DASAR TEKNIS --}}
+    {{-- DASAR PERTIMBANGAN --}}
+    <div class="dasar-teknis">
+        <strong>DASAR PERTIMBANGAN:</strong>
+        <table>
+            <tr>
+                <td class="label">Rekomendasi Teknis</td>
+                <td>: {{ $rekomendasi?->nomor_rekomendasi ?? '-' }} / {{ $rekomendasi?->tanggal_rekomendasi?->translatedFormat('d F Y') ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Hasil Rekomendasi</td>
+                <td>: {{ $rekomendasi?->hasil?->getLabel() ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Risalah Pertimbangan</td>
+                <td>: {{ $risalah?->nomor_risalah ?? '-' }} / {{ $risalah?->tanggal_risalah?->translatedFormat('d F Y') ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Hasil Risalah</td>
+                <td>: {{ $risalah?->hasil?->getLabel() ?? '-' }}</td>
+            </tr>
+        </table>
+    </div>
+
     @if ($keputusan->hasil_pertimbangan)
         <div class="dasar-teknis">
             <strong>RINGKASAN DASAR TEKNIS:</strong><br>

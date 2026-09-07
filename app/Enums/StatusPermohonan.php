@@ -46,7 +46,17 @@ enum StatusPermohonan: string implements HasColor, HasLabel
 
     public static function visibleForStaff(): array
     {
-        return [self::Diajukan->value, self::Verifikasi->value, self::Dikembalikan->value, self::MenungguRisalah->value, self::Keputusan->value];
+        return [
+            self::Diajukan->value,
+            self::Verifikasi->value,
+            self::Dikembalikan->value,
+            self::ProsesTeknis->value,
+            self::Rekomendasi->value,
+            self::MenungguRisalah->value,
+            self::Keputusan->value,
+            self::Diterbitkan->value,
+            self::Ditolak->value,
+        ];
     }
 
     public static function visibleForTimTeknis(): array

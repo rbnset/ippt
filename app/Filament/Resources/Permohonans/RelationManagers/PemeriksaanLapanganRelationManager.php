@@ -220,7 +220,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                             FileUpload::make('path')
                                 ->label('Foto')
                                 ->disk('private')
-                                ->directory('pemeriksaan-lapangan/foto')
+                                ->directory(fn (): string => app(\App\Services\PermohonanStoragePathService::class)->directory($this->getOwnerRecord(), 'pemeriksaan-lapangan/foto'))
                                 ->visibility('private')
                                 ->image()
                                 ->required()
@@ -365,7 +365,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                             if (! is_array($photo) || empty($photo['path'])) return $photo;
                             $source=$photo['path'];
                             if (! Storage::disk('private')->exists($source)) return $photo;
-                            $target='pemeriksaan-lapangan/foto/revisi/'.Str::uuid().'-'.basename($source);
+                            $target=app(\App\Services\PermohonanStoragePathService::class)->directory($owner, 'pemeriksaan-lapangan/foto') . '/revisi-' . Str::uuid() . '-' . basename($source);
                             Storage::disk('private')->copy($source,$target); $photo['path']=$target; return $photo;
                         })->all();
                         $owner->pemeriksaanLapangan()->create($payload);

@@ -6,6 +6,7 @@ use App\Enums\StatusPemeriksaan;
 use App\Models\RekomendasiTeknis;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use App\Services\PermohonanStoragePathService;
 
 class RekomendasiTeknisPdfService
 {
@@ -38,11 +39,17 @@ class RekomendasiTeknisPdfService
 
     public function store(RekomendasiTeknis $rekomendasi): string
     {
-        $filename = sprintf(
-            '%s_rekomendasi-teknis.pdf',
-            strtolower(str_replace(['/', '\\'], '-', $rekomendasi->nomor_rekomendasi ?: 'rekomendasi-' . $rekomendasi->id))
+        $permohonan = $rekomendasi->loadMissing('permohonan.pemohon')->permohonan;
+        if (! $permohonan) {
+            throw new \RuntimeException('Permohonan untuk rekomendasi teknis tidak ditemukan.');
+        }
+
+        $path = app(PermohonanStoragePathService::class)->path(
+            $permohonan,
+            'rekomendasi-teknis',
+            'rekomendasi',
+            $rekomendasi->nomor_rekomendasi ?: 'rekomendasi-' . $rekomendasi->id,
         );
-        $path = 'rekomendasi-teknis/generated/' . $filename;
         Storage::disk('private')->put($path, $this->generate($rekomendasi)->output());
         return $path;
     }
