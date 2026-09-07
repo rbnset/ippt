@@ -6,6 +6,8 @@ use App\Enums\HasilPemeriksaan;
 use App\Enums\StatusPemeriksaan;
 use App\Filament\Concerns\HasFileViewAction;
 use App\Models\PemeriksaanLapangan;
+use App\Models\User;
+use App\Enums\UserRole;
 use App\Services\PemeriksaanLapanganPdfService;
 use App\Services\PemeriksaanLapanganNumberService;
 use Filament\Actions\Action;
@@ -25,9 +27,11 @@ use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -44,6 +48,33 @@ class PemeriksaanLapanganRelationManager extends RelationManager
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'pemohon', 'tim_teknis', 'kabid']);
+    }
+
+    /**
+     * Pemeriksaan lapangan tetap dapat dikerjakan dari halaman View Permohonan.
+     * Hak aksi tetap dibatasi oleh visible()/authorization masing-masing action.
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
+    public static function getBadge(Model $ownerRecord, string $pageClass): ?string
+    {
+        // Badge merepresentasikan satu proses pemeriksaan, bukan jumlah versi BAP.
+        return $ownerRecord->pemeriksaanLapangan()->exists() ? '1' : null;
+    }
+
+    public static function getBadgeColor(Model $ownerRecord, string $pageClass): ?string
+    {
+        return $ownerRecord->pemeriksaanLapangan()->exists() ? 'info' : null;
+    }
+
+    public static function getBadgeTooltip(Model $ownerRecord, string $pageClass): ?string
+    {
+        return $ownerRecord->pemeriksaanLapangan()->exists()
+            ? 'Pemeriksaan lapangan sudah dibuat'
+            : null;
     }
 
     public function form(Schema $schema): Schema
@@ -65,11 +96,40 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         ->required()
                         ->maxLength(100)
                         ->placeholder('Cerah / Mendung / Hujan'),
-                    TextInput::make('nama_tim')
-                        ->label('Petugas / Anggota Tim Pemeriksa')
+                    Select::make('anggota_tim_ids')
+                        ->label('Anggota Tim Pemeriksa')
+                        ->multiple()
+                        ->options(fn (): array => User::query()
+                            ->where('role', UserRole::TIM_TEKNIS->value)
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->all())
                         ->required()
-                        ->maxLength(500)
-                        ->placeholder('Contoh: Budi Santoso, S.T.; Siti Rahmawati, S.Si.'),
+                        ->minItems(1)
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->helperText('Pilih user yang benar-benar ikut pemeriksaan. Tidak perlu membuat tabel petugas terpisah.'),
+                    Select::make('ketua_tim_id')
+                        ->label('Ketua Tim Pemeriksa')
+                        ->options(fn (Get $get): array => User::query()
+                            ->where('role', UserRole::TIM_TEKNIS->value)
+                            ->when(
+                                filled($get('anggota_tim_ids')),
+                                fn ($query) => $query->whereIn('id', (array) $get('anggota_tim_ids')),
+                            )
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->all())
+                        ->required()
+                        ->searchable()
+                        ->preload()
+                        ->helperText('Ketua harus merupakan salah satu anggota tim. Nama ini digunakan pada bagian tanda tangan BAP.'),
+                    TextInput::make('nama_tim')
+                        ->label('Ringkasan Tim')
+                        ->disabled()
+                        ->dehydrated()
+                        ->helperText('Dibentuk otomatis dari anggota tim yang dipilih.'),
                 ]),
 
             Section::make('Lokasi Hasil Peninjauan')
@@ -178,6 +238,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         ->itemLabel(fn (array $state): string => filled($state['caption'] ?? null)
                             ? Str::limit($state['caption'], 55)
                             : 'Dokumentasi Lapangan')
+                        ->columns(1)
                         ->collapsible()
                         ->cloneable(false)
                         ->reorderable()
@@ -204,7 +265,8 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                     ->limit(45)
                     ->tooltip(fn (PemeriksaanLapangan $record): ?string => $record->alasan_pembaruan ?: null)
                     ->toggleable(),
-                TextColumn::make('dibuatOleh.name')->label('Petugas')->placeholder('-'),
+                TextColumn::make('ketuaTim.name')->label('Ketua Tim')->placeholder('-')->toggleable(),
+                TextColumn::make('dibuatOleh.name')->label('Dibuat Oleh')->placeholder('-')->toggleable(),
                 TextColumn::make('difinalisasi_pada')->label('Final')->dateTime('d/m/Y H:i')->placeholder('-')->toggleable(),
             ])
             ->filters([
@@ -213,17 +275,60 @@ class PemeriksaanLapanganRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->modalWidth('4xl')
                     ->label('Isi Pemeriksaan Lapangan')
                     ->icon('heroicon-o-clipboard-document-check')
                     ->visible(fn (): bool => auth()->user()->hasAnyRole(['tim_teknis', 'admin'])
                         && ! $this->getOwnerRecord()->pemeriksaanLapangan()->exists())
                     ->mutateFormDataUsing(function (array $data): array {
+                        $memberIds = array_values(array_unique(array_map('intval', $data['anggota_tim_ids'] ?? [])));
+                        $leaderId = (int) ($data['ketua_tim_id'] ?? 0);
+                        if ($leaderId <= 0 || ! in_array($leaderId, $memberIds, true)) {
+                            throw new \InvalidArgumentException('Ketua tim harus merupakan salah satu anggota tim pemeriksa.');
+                        }
+                        $members = User::query()->whereIn('id', $memberIds)->where('role', UserRole::TIM_TEKNIS->value)->orderBy('name')->get();
+                        if ($members->count() !== count($memberIds)) {
+                            throw new \InvalidArgumentException('Anggota tim pemeriksa harus berasal dari role Tim Teknis.');
+                        }
+                        $data['anggota_tim_ids'] = $memberIds;
+                        $data['nama_tim'] = $members->pluck('name')->implode('; ');
                         $data['dibuat_oleh'] = Auth::id();
                         $data['status'] = StatusPemeriksaan::Draf;
                         $data['versi'] = 1;
+                        $this->getOwnerRecord()->update(['status' => \App\Enums\StatusPermohonan::ProsesTeknis->value]);
                         return $data;
                     })
-                    ->after(fn () => Notification::make()->success()->title('Pemeriksaan disimpan sebagai draf')->body('Periksa kembali seluruh data dan finalisasi jika sudah benar.')->send()),
+                    ->after(function (): void {
+                        $owner = $this->getOwnerRecord()->fresh();
+                        $bap = $owner?->pemeriksaanLapangan()->latest('id')->first();
+                        if (! $bap) return;
+                        $bap->load('permohonan.pemohon.user', 'ketuaTim');
+                        $notification = app(\App\Services\IpptWorkflowNotificationService::class);
+                        $action = $notification->applicationAction($owner, 'Buka Permohonan');
+                        $notification->roles(
+                            [UserRole::ADMIN, UserRole::STAFF],
+                            'Pemeriksaan lapangan dimulai',
+                            sprintf('Pemeriksaan lapangan untuk %s (%s) telah dibuat sebagai draf. Ketua tim: %s. Jadwal: %s.', $owner->nomor_permohonan, $owner->pemohon?->nama ?? 'Pemohon', $bap->ketuaTim?->name ?? '—', $bap->tanggal_pemeriksaan?->format('d/m/Y') ?? '—'),
+                            'info',
+                            $action,
+                        );
+                        $members = User::query()->whereIn('id', $bap->anggota_tim_ids ?? [])->get();
+                        $notification->users(
+                            $members,
+                            'Anda ditugaskan dalam pemeriksaan lapangan',
+                            sprintf('Anda menjadi anggota tim pemeriksaan untuk %s. Ketua tim: %s. Jadwal: %s.', $owner->nomor_permohonan, $bap->ketuaTim?->name ?? '—', $bap->tanggal_pemeriksaan?->format('d/m/Y') ?? '—'),
+                            'warning',
+                            $action,
+                        );
+                        $notification->pemohon(
+                            $owner,
+                            'Pemeriksaan lapangan dijadwalkan',
+                            sprintf('Pemeriksaan lapangan untuk permohonan %s dijadwalkan pada %s. Tim pemeriksa telah ditetapkan dan petugas sedang menyiapkan BAP.', $owner->nomor_permohonan, $bap->tanggal_pemeriksaan?->format('d/m/Y') ?? 'tanggal yang ditentukan petugas'),
+                            'info',
+                            $action,
+                        );
+                        Notification::make()->success()->title('Pemeriksaan disimpan sebagai draf')->body('Tim pemeriksa tersimpan dan notifikasi dikirim kepada pihak terkait.')->send();
+                    }),
 
                 Action::make('perbarui_bap_final')
                     ->label('Perbarui BAP Final')
@@ -248,7 +353,7 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                         $owner = $this->getOwnerRecord();
                         $record = $owner->pemeriksaanLapangan()->where('status', StatusPemeriksaan::Final)->orderByDesc('versi')->firstOrFail();
                         $nextVersion = ((int) $owner->pemeriksaanLapangan()->max('versi')) + 1;
-                        $payload = $record->only(['permohonan_id','tanggal_pemeriksaan','waktu_mulai','waktu_selesai','nama_tim','cuaca','latitude','longitude','alamat_lokasi','checklist','kondisi_eksisting','temuan','kesimpulan','rekomendasi','hasil','foto_lapangan']);
+                        $payload = $record->only(['permohonan_id','ketua_tim_id','anggota_tim_ids','tanggal_pemeriksaan','waktu_mulai','waktu_selesai','nama_tim','cuaca','latitude','longitude','alamat_lokasi','checklist','kondisi_eksisting','temuan','kesimpulan','rekomendasi','hasil','foto_lapangan']);
                         $payload['dibuat_oleh'] = Auth::id();
                         $payload['status'] = StatusPemeriksaan::Draf;
                         $payload['versi'] = $nextVersion;
@@ -298,23 +403,27 @@ class PemeriksaanLapanganRelationManager extends RelationManager
                             'difinalisasi_oleh' => Auth::id(),
                             'difinalisasi_pada' => now(),
                         ]);
-                        $record->refresh();
+                        $record->refresh()->load('permohonan', 'difinalisasiOleh', 'ketuaTim');
                         $path = $pdfService->store($record);
                         $record->update(['generated_bap_path' => $path]);
 
                         Notification::make()->success()->title('BAP berhasil difinalisasi')->body('Form pemeriksaan kini terkunci. BAP final tersedia untuk dibuka, diunduh, dan dicetak.')->send();
 
-                        app(\App\Services\IpptWorkflowNotificationService::class)->pemohon(
+                        $notification = app(\App\Services\IpptWorkflowNotificationService::class);
+                        $action = $notification->applicationAction($record->permohonan, 'Buka Permohonan');
+                        $notification->pemohon(
                             $record->permohonan,
                             'BAP Pemeriksaan Lapangan diterbitkan',
-                            "BAP {$record->nomor_bap} telah difinalisasi dan tersedia untuk Anda lihat/unduh.",
-                            'success'
+                            "BAP {$record->nomor_bap} untuk permohonan {$record->permohonan->nomor_permohonan} telah difinalisasi. Pemeriksaan lapangan selesai dan proses teknis berlanjut ke rekomendasi.",
+                            'success',
+                            $action,
                         );
-                        app(\App\Services\IpptWorkflowNotificationService::class)->roles(
-                            [\App\Enums\UserRole::TIM_TEKNIS, \App\Enums\UserRole::KABID],
+                        $notification->roles(
+                            [UserRole::ADMIN, UserRole::STAFF, UserRole::TIM_TEKNIS, UserRole::KABID],
                             'BAP Pemeriksaan Lapangan final',
-                            "BAP {$record->nomor_bap} untuk {$record->permohonan->nomor_permohonan} telah difinalisasi.",
-                            'info'
+                            "BAP {$record->nomor_bap} untuk {$record->permohonan->nomor_permohonan} telah difinalisasi oleh {$record->difinalisasiOleh?->name}. Dokumen siap digunakan sebagai dasar proses teknis berikutnya.",
+                            'info',
+                            $action,
                         );
                     }),
 
@@ -331,8 +440,23 @@ class PemeriksaanLapanganRelationManager extends RelationManager
 
                 ActionGroup::make([
                     EditAction::make()
+                        ->modalWidth('4xl')
                         ->label('Edit Draf')
-                        ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin'])),
+                        ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasAnyRole(['tim_teknis', 'admin']))
+                        ->mutateFormDataUsing(function (array $data): array {
+                            $memberIds = array_values(array_unique(array_map('intval', $data['anggota_tim_ids'] ?? [])));
+                            $leaderId = (int) ($data['ketua_tim_id'] ?? 0);
+                            if ($leaderId <= 0 || ! in_array($leaderId, $memberIds, true)) {
+                                throw new \InvalidArgumentException('Ketua tim harus merupakan salah satu anggota tim pemeriksa.');
+                            }
+                            $members = User::query()->whereIn('id', $memberIds)->where('role', UserRole::TIM_TEKNIS->value)->orderBy('name')->get();
+                            if ($members->count() !== count($memberIds)) {
+                                throw new \InvalidArgumentException('Anggota tim pemeriksa harus berasal dari role Tim Teknis.');
+                            }
+                            $data['anggota_tim_ids'] = $memberIds;
+                            $data['nama_tim'] = $members->pluck('name')->implode('; ');
+                            return $data;
+                        }),
                     DeleteAction::make()
                         ->label('Hapus Draf')
                         ->visible(fn (PemeriksaanLapangan $record): bool => ! $record->isFinal() && auth()->user()->hasRole('admin'))

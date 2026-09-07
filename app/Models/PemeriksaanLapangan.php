@@ -15,7 +15,7 @@ class PemeriksaanLapangan extends Model
     protected $table = 'pemeriksaan_lapangan';
 
     protected $fillable = [
-        'permohonan_id', 'dibuat_oleh', 'tanggal_pemeriksaan', 'waktu_mulai', 'waktu_selesai', 'nama_tim',
+        'permohonan_id', 'dibuat_oleh', 'ketua_tim_id', 'anggota_tim_ids', 'tanggal_pemeriksaan', 'waktu_mulai', 'waktu_selesai', 'nama_tim',
         'cuaca', 'latitude', 'longitude', 'alamat_lokasi', 'checklist', 'kondisi_eksisting', 'hasil_pemeriksaan',
         'temuan', 'kesimpulan', 'rekomendasi', 'hasil', 'foto_lapangan', 'status', 'nomor_bap',
         'generated_bap_path', 'difinalisasi_oleh', 'difinalisasi_pada', 'versi', 'revisi_dari_id', 'alasan_pembaruan',
@@ -28,6 +28,7 @@ class PemeriksaanLapangan extends Model
             'status' => StatusPemeriksaan::class,
             'tanggal_pemeriksaan' => 'date',
             'checklist' => 'array',
+            'anggota_tim_ids' => 'array',
             'foto_lapangan' => 'array',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
@@ -37,6 +38,7 @@ class PemeriksaanLapangan extends Model
 
     public function permohonan(): BelongsTo { return $this->belongsTo(Permohonan::class); }
     public function dibuatOleh(): BelongsTo { return $this->belongsTo(User::class, 'dibuat_oleh'); }
+    public function ketuaTim(): BelongsTo { return $this->belongsTo(User::class, 'ketua_tim_id'); }
     public function difinalisasiOleh(): BelongsTo { return $this->belongsTo(User::class, 'difinalisasi_oleh'); }
     public function revisiDari(): BelongsTo { return $this->belongsTo(self::class, 'revisi_dari_id'); }
 

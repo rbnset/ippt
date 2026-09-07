@@ -28,6 +28,15 @@ class IpptWorkflowNotificationService
         }
     }
 
+    public function users(iterable $users, string $title, string $body, string $level = 'info', ?Action $action = null): void
+    {
+        foreach ($users as $user) {
+            if ($user instanceof User) {
+                $this->send($user, $title, $body, $level, $action);
+            }
+        }
+    }
+
     public function roles(array $roles, string $title, string $body, string $level = 'info', ?Action $action = null): void
     {
         $users = User::query()

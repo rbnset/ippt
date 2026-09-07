@@ -95,7 +95,8 @@
     <table class="clean">
         <tr><td class="label">Tanggal</td><td>: {{ $pemeriksaan->tanggal_pemeriksaan?->format('d/m/Y') }}</td></tr>
         <tr><td class="label">Waktu</td><td>: {{ $pemeriksaan->waktu_mulai ?: '-' }} s.d. {{ $pemeriksaan->waktu_selesai ?: '-' }}</td></tr>
-        <tr><td class="label">Petugas/Tim</td><td>: {{ $pemeriksaan->nama_tim ?: $pemeriksaan->dibuatOleh?->name }}</td></tr>
+        <tr><td class="label">Ketua Tim Pemeriksa</td><td>: {{ $pemeriksaan->ketuaTim?->name ?: $pemeriksaan->dibuatOleh?->name }}</td></tr>
+        <tr><td class="label">Anggota Tim</td><td>: {{ $teamMembers->pluck('name')->implode('; ') ?: ($pemeriksaan->nama_tim ?: $pemeriksaan->dibuatOleh?->name) }}</td></tr>
         <tr><td class="label">Cuaca</td><td>: {{ $pemeriksaan->cuaca ?: '-' }}</td></tr>
     </table>
 
@@ -155,10 +156,20 @@
 
     <table class="signature">
         <tr>
-            <td>Petugas Pemeriksa,<div class="space-sign"></div><strong><u>{{ $pemeriksaan->dibuatOleh?->name }}</u></strong></td>
-            <td>Mengetahui,<div class="space-sign"></div><strong><u>{{ $pemeriksaan->difinalisasiOleh?->name ?: 'Pejabat/Petugas Berwenang' }}</u></strong></td>
+            <td style="width: 100%; text-align: center;">
+                Ketua Tim Pemeriksa,
+                <div class="space-sign"></div>
+                <strong><u>{{ $pemeriksaan->ketuaTim?->name ?: $pemeriksaan->dibuatOleh?->name }}</u></strong>
+            </td>
         </tr>
     </table>
+
+    <div style="margin-top: 12px; font-size: 9px; text-align: center; color: #555;">
+        <strong>Catatan sistem:</strong> BAP difinalisasi secara elektronik oleh
+        {{ $pemeriksaan->difinalisasiOleh?->name ?: 'petugas berwenang' }}
+        pada {{ $pemeriksaan->difinalisasi_pada?->format('d/m/Y H:i') ?: now()->format('d/m/Y H:i') }}.
+        Anggota tim pemeriksa tercantum pada bagian identitas tim dan tidak menjadi penandatangan utama BAP.
+    </div>
 
     <div class="footer">Dokumen elektronik hasil sistem pelayanan IPPT — {{ now()->format('d/m/Y H:i') }}</div>
 </body>

@@ -125,7 +125,41 @@ class Dashboard extends BaseDashboard
         ];
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<int, array<string, mixed>> */
+    public function getPemohonProgress(): array
+    {
+        $pemohon = $this->getPemohonRecord();
+        if (! $pemohon) return [];
+
+        return Permohonan::query()
+            ->where('pemohon_id', $pemohon->id)
+            ->with(['pemeriksaanLapangan' => fn ($query) => $query->orderByDesc('versi')])
+            ->latest('created_at')->limit(3)->get()
+            ->map(function (Permohonan $permohonan): array {
+                $bap = $permohonan->pemeriksaanLapangan->first();
+                $status = $permohonan->status instanceof StatusPermohonan ? $permohonan->status : StatusPermohonan::tryFrom((string) $permohonan->status);
+                $progress = match ($status) {
+                    StatusPermohonan::Diajukan, StatusPermohonan::Verifikasi => ['label' => 'Verifikasi administrasi', 'detail' => 'Permohonan sedang diperiksa petugas.', 'step' => 2],
+                    StatusPermohonan::Dikembalikan => ['label' => 'Perlu perbaikan', 'detail' => 'Periksa notifikasi dan lengkapi dokumen yang diminta.', 'step' => 2],
+                    StatusPermohonan::ProsesTeknis => $bap?->isFinal()
+                        ? ['label' => 'BAP selesai', 'detail' => 'Pemeriksaan lapangan telah selesai dan proses teknis berlanjut.', 'step' => 4]
+                        : ($bap ? ['label' => 'Pemeriksaan lapangan', 'detail' => 'Tim teknis sedang menyusun BAP pemeriksaan lapangan.', 'step' => 3] : ['label' => 'Menunggu pemeriksaan teknis', 'detail' => 'Permohonan sudah masuk tahap teknis.', 'step' => 3]),
+                    StatusPermohonan::Rekomendasi => ['label' => 'Rekomendasi teknis', 'detail' => 'Hasil pemeriksaan menjadi dasar penyusunan rekomendasi teknis.', 'step' => 5],
+                    StatusPermohonan::MenungguRisalah => ['label' => 'Risalah pertimbangan', 'detail' => 'Menunggu proses dokumen resmi pertimbangan teknis.', 'step' => 6],
+                    StatusPermohonan::Keputusan => ['label' => 'Keputusan IPPT', 'detail' => 'Permohonan berada pada tahap penyusunan/pengesahan keputusan.', 'step' => 7],
+                    StatusPermohonan::Diterbitkan => ['label' => 'Selesai', 'detail' => 'Keputusan IPPT telah diterbitkan.', 'step' => 8],
+                    StatusPermohonan::Ditolak => ['label' => 'Permohonan ditolak', 'detail' => 'Lihat detail permohonan dan notifikasi untuk informasi lebih lanjut.', 'step' => 0],
+                    default => ['label' => 'Dalam proses', 'detail' => 'Permohonan sedang diproses.', 'step' => 1],
+                };
+                return [
+                    'id' => $permohonan->id, 'nomor' => $permohonan->nomor_permohonan,
+                    'status' => $status?->getLabel() ?? (string) $permohonan->status,
+                    'bap' => $bap ? ($bap->isFinal() ? 'BAP final' : 'BAP draf') : null,
+                    ...$progress,
+                ];
+            })->all();
+    }
+
     /** @return array<string, mixed> */
     public function getBackofficeDashboard(): array
     {

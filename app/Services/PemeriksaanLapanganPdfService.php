@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Models\PemeriksaanLapangan;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
 
 class PemeriksaanLapanganPdfService
 {
     public function generate(PemeriksaanLapangan $pemeriksaan)
     {
-        $pemeriksaan->load(['permohonan.pemohon', 'dibuatOleh', 'difinalisasiOleh']);
+        $pemeriksaan->load(['permohonan.pemohon', 'dibuatOleh', 'difinalisasiOleh', 'ketuaTim']);
+        $teamMembers = User::query()->whereIn('id', $pemeriksaan->anggota_tim_ids ?? [])->orderBy('name')->get();
 
         return Pdf::loadView('pdf.ippt.bap-pemeriksaan-lapangan', [
             'pemeriksaan' => $pemeriksaan,
@@ -18,6 +20,7 @@ class PemeriksaanLapanganPdfService
             'pemohon' => $pemeriksaan->permohonan->pemohon,
             'logoPath' => public_path('images/logo.png'),
             'photos' => $this->photos($pemeriksaan),
+            'teamMembers' => $teamMembers,
         ])
             ->setPaper('a4')
             ->setOption(['isHtml5ParserEnabled' => true, 'isRemoteEnabled' => false]);

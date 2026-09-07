@@ -125,6 +125,21 @@
             </section>
 
             @if($pemohon)
+                @php($progressItems = $this->getPemohonProgress())
+                @if(count($progressItems))
+                    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div class="border-b border-slate-100 px-6 py-5 dark:border-slate-800 sm:px-8"><p class="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">Progress pengajuan</p><h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">Tahapan permohonan terbaru</h3><p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Ringkasan tahap membantu Anda memahami posisi permohonan tanpa harus membuka setiap dokumen.</p></div>
+                        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @foreach($progressItems as $item)
+                                <a href="{{ \App\Filament\Resources\Permohonans\PermohonanResource::getUrl('view', ['record' => $item['id']]) }}" class="block px-6 py-5 transition hover:bg-slate-50 dark:hover:bg-slate-950/60 sm:px-8">
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div class="min-w-0"><p class="truncate text-sm font-black text-slate-950 dark:text-white">{{ $item['nomor'] }}</p><p class="mt-1 text-sm font-bold text-amber-700 dark:text-amber-300">{{ $item['label'] }}</p><p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ $item['detail'] }}@if($item['bap']) · {{ $item['bap'] }}@endif</p></div><span class="inline-flex w-fit shrink-0 items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">{{ $item['status'] }}</span></div>
+                                    <div class="mt-4 flex gap-1">@for($step = 1; $step <= 8; $step++)<span class="h-1.5 flex-1 rounded-full {{ $step <= max(1, $item['step']) ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-800' }}"></span>@endfor</div>
+                                </a>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
                 <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach([
                         ['label'=>'Total pengajuan','value'=>$stats['total'],'icon'=>'document-text'],
