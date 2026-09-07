@@ -36,7 +36,7 @@ class PermohonanResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Permohonan IPPT';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Permohonan IPPT';
+    // protected static string|\UnitEnum|null $navigationGroup = 'Permohonan IPPT';
 
     protected static ?int $navigationSort = 2;
 

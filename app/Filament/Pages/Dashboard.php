@@ -161,7 +161,7 @@ class Dashboard extends BaseDashboard
                         ? ['label' => 'Menunggu penetapan', 'detail' => 'Keputusan sudah diajukan dan sedang menunggu penetapan Kepala Dinas.', 'step' => 7, 'action' => 'Menunggu penetapan']
                         : ['label' => 'Penyusunan keputusan', 'detail' => 'Keputusan IPPT sedang disusun atau diperbaiki sebelum diajukan untuk penetapan.', 'step' => 7, 'action' => 'Menunggu penyelesaian keputusan'],
                     StatusPermohonan::Diterbitkan => ['label' => 'Selesai', 'detail' => 'Keputusan IPPT telah ditetapkan dan diterbitkan.', 'step' => 8, 'action' => 'Dokumen tersedia'],
-                    StatusPermohonan::Ditolak => ['label' => 'Permohonan ditolak', 'detail' => 'Keputusan akhir menolak permohonan. Buka detail untuk melihat informasi keputusan.', 'step' => 0, 'action' => 'Lihat keputusan'],
+                    StatusPermohonan::Ditolak => ['label' => 'Permohonan ditolak', 'detail' => 'Keputusan akhir menolak permohonan. Buka detail untuk melihat informasi keputusan.', 'step' => 7, 'action' => 'Lihat keputusan'],
                     default => ['label' => 'Dalam proses', 'detail' => 'Permohonan sedang diproses.', 'step' => 1, 'action' => 'Menunggu proses'],
                 };
 
@@ -170,9 +170,43 @@ class Dashboard extends BaseDashboard
                     'nomor' => $permohonan->nomor_permohonan,
                     'tanggal' => $permohonan->created_at?->format('d M Y'),
                     'status' => $status?->getLabel() ?? (string) $permohonan->status,
+                    'progress_steps' => $this->buildPemohonProgressSteps((int) ($progress['step'] ?? 1), $status),
                     ...$progress,
                 ];
             })->all();
+    }
+
+    /** @return array<int, array<string, string>> */
+    private function buildPemohonProgressSteps(int $currentStep, ?StatusPermohonan $status): array
+    {
+        $labels = [
+            'Pengajuan',
+            'Verifikasi',
+            'Pemeriksaan Lapangan',
+            'BAP',
+            'Rekomendasi Teknis',
+            'Risalah Pertimbangan',
+            'Keputusan',
+            'Selesai',
+        ];
+
+        $isRejected = $status === StatusPermohonan::Ditolak;
+        $isCompleted = $status === StatusPermohonan::Diterbitkan;
+
+        return array_map(function (string $label, int $index) use ($currentStep, $isRejected, $isCompleted): array {
+            $step = $index + 1;
+            if ($isRejected && $step === $currentStep) {
+                return ['label' => $label, 'state' => 'rejected'];
+            }
+            if ($isCompleted) {
+                return ['label' => $label, 'state' => 'completed'];
+            }
+
+            return [
+                'label' => $label,
+                'state' => $step < $currentStep ? 'completed' : ($step === $currentStep ? 'current' : 'upcoming'),
+            ];
+        }, $labels, array_keys($labels));
     }
 
     /** @return array<string, mixed> */

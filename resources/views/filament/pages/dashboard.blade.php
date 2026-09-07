@@ -128,7 +128,7 @@
                 @php($progressItems = $this->getPemohonProgress())
                 @if(count($progressItems))
                     <section class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="border-b border-slate-100 px-6 py-5 dark:border-slate-800 sm:px-8"><div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">Progress pengajuan</p><h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">3 permohonan terbaru</h3><p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Pantau posisi proses dan langkah berikutnya tanpa harus membuka setiap dokumen.</p></div><span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Dari {{ $stats['total'] }} pengajuan</span></div></div>
+                        <div class="border-b border-slate-100 px-6 py-5 dark:border-slate-800 sm:px-8"><div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">Progress pengajuan</p><h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">Permohonan saya</h3><p class="mt-1 text-sm text-slate-600 dark:text-slate-300">@if($stats['total'] > 3)Menampilkan 3 permohonan terbaru dari {{ $stats['total'] }} pengajuan.@else Pantau posisi proses dan langkah berikutnya tanpa harus membuka setiap dokumen. @endif</p></div><span class="text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $stats['total'] }} pengajuan</span></div></div>
                         <div class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach($progressItems as $item)
                                 <a href="{{ \App\Filament\Resources\Permohonans\PermohonanResource::getUrl('view', ['record' => $item['id']]) }}" class="block px-6 py-5 transition hover:bg-slate-50 dark:hover:bg-slate-950/60 sm:px-8">
@@ -141,8 +141,16 @@
                                         </div>
                                         <span class="inline-flex w-fit shrink-0 items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">{{ $item['status'] }}</span>
                                     </div>
-                                    <div class="mt-5 flex gap-1.5" aria-label="Tahap {{ $item['step'] }} dari 8">@for($step = 1; $step <= 8; $step++)<span class="h-1.5 flex-1 rounded-full {{ $step <= max(1, $item['step']) ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-800' }}"></span>@endfor</div>
-                                    <div class="mt-2 flex justify-between text-[10px] font-semibold uppercase tracking-wide text-slate-400"><span>Pengajuan</span><span>Verifikasi</span><span>Teknis</span><span>Rekomendasi</span><span>Risalah</span><span>Keputusan</span><span>Selesai</span></div>
+                                    <div class="mt-6 grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-8 sm:gap-x-1.5" aria-label="Tahap {{ $item['step'] }} dari 8">
+                                        @foreach($item['progress_steps'] as $progressStep)
+                                            @php($progressState = $progressStep['state'])
+                                            <div class="min-w-0">
+                                                <div class="h-1.5 rounded-full {{ $progressState === 'completed' ? 'bg-emerald-500 dark:bg-emerald-400' : ($progressState === 'current' ? 'bg-amber-500 dark:bg-amber-400' : ($progressState === 'rejected' ? 'bg-rose-500 dark:bg-rose-400' : 'bg-slate-200 dark:bg-slate-800')) }}" title="{{ $progressStep['label'] }}"></div>
+                                                <p class="mt-2 text-[10px] font-bold leading-4 {{ $progressState === 'completed' ? 'text-emerald-700 dark:text-emerald-300' : ($progressState === 'current' ? 'text-amber-700 dark:text-amber-300' : ($progressState === 'rejected' ? 'text-rose-700 dark:text-rose-300' : 'text-slate-400 dark:text-slate-500')) }}">{{ $progressStep['label'] }}</p>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400"><span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500"></span>Selesai</span><span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-amber-500"></span>Sedang berjalan</span><span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-slate-300 dark:bg-slate-700"></span>Belum dimulai</span>@if($item['status'] === 'Ditolak')<span class="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><span class="size-2 rounded-full bg-rose-500"></span>Ditolak</span>@endif</div>
                                 </a>
                             @endforeach
                         </div>

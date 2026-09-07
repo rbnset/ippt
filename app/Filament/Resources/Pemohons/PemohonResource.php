@@ -30,7 +30,7 @@ class PemohonResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Pemohon';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Permohonan IPPT';
+    // protected static string|\UnitEnum|null $navigationGroup = 'Permohonan IPPT';
 
     protected static ?int $navigationSort = 1;
 
