@@ -35,12 +35,12 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('10s')
             ->topNavigation()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Yellow,
             ])
             ->darkMode()
             ->viteTheme('resources/css/filament/admin/theme.css')
-            ->brandLogo(fn () => asset('images/logo.png'))
-            ->darkModeBrandLogo(fn () => asset('images/logo.png'))
+            ->brandLogo(fn() => asset('images/logo.png'))
+            ->darkModeBrandLogo(fn() => asset('images/logo.png'))
             ->brandLogoHeight('2.75rem')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
